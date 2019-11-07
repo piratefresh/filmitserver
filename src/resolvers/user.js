@@ -1,25 +1,32 @@
 import jwt from "jsonwebtoken";
-import {combineResolvers} from "graphql-resolvers";
-import {AuthenticationError, UserInputError} from "apollo-server";
+import { combineResolvers } from "graphql-resolvers";
+import { AuthenticationError, UserInputError } from "apollo-server";
+import cloudinary from "cloudinary";
 
-import {isAdmin} from "./authorization";
+import { isAdmin } from "./authorization";
+
+cloudinary.config({
+  cloud_name: "da91pbpmj",
+  api_key: "446621691525293",
+  api_secret: "a676b67565c6767a6767d6767f676fe1"
+});
 
 const createToken = async (user, secret, expiresIn) => {
-  const {id, email, username, role} = user;
-  return await jwt.sign({id, email, username, role}, secret, {
+  const { id, email, username, role } = user;
+  return await jwt.sign({ id, email, username, role }, secret, {
     expiresIn
   });
 };
 
 export default {
   Query: {
-    users: async (parent, args, {models}) => {
+    users: async (parent, args, { models }) => {
       return await models.User.findAll();
     },
-    user: async (parent, {id}, {models}) => {
+    user: async (parent, { id }, { models }) => {
       return await models.User.findById(id);
     },
-    me: async (parent, args, {models, me}) => {
+    me: async (parent, args, { models, me }) => {
       if (!me) {
         return null;
       }
@@ -29,17 +36,21 @@ export default {
   },
 
   Mutation: {
-    signUp: async (parent, {username, email, password}, {models, secret}) => {
+    signUp: async (
+      parent,
+      { username, email, password },
+      { models, secret }
+    ) => {
       const user = await models.User.create({
         username,
         email,
         password
       });
 
-      return {token: createToken(user, secret, "30m")};
+      return { token: createToken(user, secret, "30m") };
     },
 
-    signIn: async (parent, {login, password}, {models, secret}) => {
+    signIn: async (parent, { login, password }, { models, secret }) => {
       const user = await models.User.findByLogin(login);
 
       if (!user) {
@@ -52,18 +63,32 @@ export default {
         throw new AuthenticationError("Invalid password.");
       }
 
-      return {token: createToken(user, secret, "30m")};
+      return { token: createToken(user, secret, "30m") };
     },
 
-    deleteUser: combineResolvers(isAdmin, async (parent, {id}, {models}) => {
-      return await models.User.destroy({
-        where: {id}
+    deleteUser: combineResolvers(
+      isAdmin,
+      async (parent, { id }, { models }) => {
+        return await models.User.destroy({
+          where: { id }
+        });
+      }
+    ),
+
+    uploadAvatar: async (parent, { id, imageUrl }, { models }, info) => {
+      console.log(`file: ${imageUrl} ID: ${id}`);
+      const user = await models.User.update({
+        where: { id }
       });
-    })
+
+      user.avatar = await imageUrl;
+
+      return await user;
+    }
   },
 
   User: {
-    messages: async (user, args, {models}) => {
+    messages: async (user, args, { models }) => {
       console.log(user);
       return await models.Message.findAll({
         where: {

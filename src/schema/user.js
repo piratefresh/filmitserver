@@ -1,4 +1,4 @@
-import {gql} from "apollo-server-express";
+import { gql } from "apollo-server-express";
 
 export default gql`
   extend type Query {
@@ -10,6 +10,7 @@ export default gql`
     signUp(username: String!, email: String!, password: String!): Token!
     signIn(login: String!, password: String!): Token!
     deleteUser(id: ID!): Boolean!
+    uploadAvatar(imageUrl: String!): User
   }
   type Token {
     token: String!
@@ -23,6 +24,7 @@ export default gql`
     bio: String
     rating: Int
     socials: [Social]
+    avatar: String
   }
   type Social {
     portfolio: String
