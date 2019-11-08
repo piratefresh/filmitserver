@@ -1,8 +1,8 @@
 import Sequelize from "sequelize";
-import {combineResolvers} from "graphql-resolvers";
+import { combineResolvers } from "graphql-resolvers";
 
-import pubsub, {EVENTS} from "../subscription";
-import {isAuthenticated, isMessageOwner} from "./authorization";
+import pubsub, { EVENTS } from "../subscription";
+import { isAuthenticated, isMessageOwner } from "./authorization";
 
 const toCursorHash = string => Buffer.from(string).toString("base64");
 
@@ -11,7 +11,7 @@ const fromCursorHash = string =>
 
 export default {
   Query: {
-    messages: async (parent, {cursor, limit = 100}, {models}) => {
+    messages: async (parent, { cursor, limit = 100 }, { models }) => {
       const cursorOptions = cursor
         ? {
             where: {
@@ -39,22 +39,22 @@ export default {
         }
       };
     },
-    message: async (parent, {id}, {models}) => {
-      return await models.Message.findById(id);
+    message: async (parent, { id }, { models }) => {
+      return await models.Message.findByPk(id);
     }
   },
 
   Mutation: {
     createMessage: combineResolvers(
       isAuthenticated,
-      async (parent, {text}, {models, me}) => {
+      async (parent, { text }, { models, me }) => {
         const message = await models.Message.create({
           text,
           userId: me.id
         });
 
         pubsub.publish(EVENTS.MESSAGE.CREATED, {
-          messageCreated: {message}
+          messageCreated: { message }
         });
 
         return message;
@@ -64,14 +64,14 @@ export default {
     deleteMessage: combineResolvers(
       isAuthenticated,
       isMessageOwner,
-      async (parent, {id}, {models}) => {
-        return await models.Message.destroy({where: {id}});
+      async (parent, { id }, { models }) => {
+        return await models.Message.destroy({ where: { id } });
       }
     )
   },
 
   Message: {
-    user: async (message, args, {loaders}) => {
+    user: async (message, args, { loaders }) => {
       return await loaders.user.load(message.userId);
     }
   },

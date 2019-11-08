@@ -1,8 +1,8 @@
 import Sequelize from "sequelize";
-import {combineResolvers} from "graphql-resolvers";
+import { combineResolvers } from "graphql-resolvers";
 
-import pubsub, {EVENTS} from "../subscription";
-import {isAuthenticated, isMessageOwner} from "./authorization";
+import pubsub, { EVENTS } from "../subscription";
+import { isAuthenticated, isMessageOwner } from "./authorization";
 
 const toCursorHash = string => Buffer.from(string).toString("base64");
 
@@ -11,7 +11,7 @@ const fromCursorHash = string =>
 
 export default {
   Query: {
-    posts: async (parent, {cursor, limit = 100}, {models}) => {
+    posts: async (parent, { cursor, limit = 100 }, { models }) => {
       const cursorOptions = cursor
         ? {
             where: {
@@ -39,8 +39,8 @@ export default {
         }
       };
     },
-    post: async (parent, {id}, {models}) => {
-      return await models.Post.findById(id);
+    post: async (parent, { id }, { models }) => {
+      return await models.Post.findByPk(id);
     }
   },
 
@@ -49,8 +49,8 @@ export default {
       isAuthenticated,
       async (
         parent,
-        {text, title, startDate, endDate, tags, category},
-        {models, me}
+        { text, title, startDate, endDate, tags, category },
+        { models, me }
       ) => {
         console.log(tags);
         const post = await models.Post.create({
@@ -64,7 +64,7 @@ export default {
         });
 
         pubsub.publish(EVENTS.POST.CREATED, {
-          postCreated: {post}
+          postCreated: { post }
         });
 
         return post;
@@ -74,14 +74,14 @@ export default {
     deletePost: combineResolvers(
       isAuthenticated,
       isMessageOwner,
-      async (parent, {id}, {models}) => {
-        return await models.Post.destroy({where: {id}});
+      async (parent, { id }, { models }) => {
+        return await models.Post.destroy({ where: { id } });
       }
     )
   },
 
   Post: {
-    user: async (post, args, {loaders}) => {
+    user: async (post, args, { loaders }) => {
       return await loaders.user.load(post.userId);
     }
   },
