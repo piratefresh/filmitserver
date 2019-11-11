@@ -4,25 +4,98 @@ import http from "http";
 import jwt from "jsonwebtoken";
 import DataLoader from "dataloader";
 import express from "express";
-import {ApolloServer, AuthenticationError} from "apollo-server-express";
+import cookieParser from "cookie-parser";
+import { ApolloServer, AuthenticationError } from "apollo-server-express";
+import morgan from "morgan";
 
 import schema from "./schema";
 import resolvers from "./resolvers";
-import models, {sequelize} from "./models";
+import models, { sequelize } from "./models";
 import loaders from "./loaders";
+import { createTokens } from "./auth";
+import auth from "./passport";
 
 const app = express();
 
 app.use(cors());
+app.use(cookieParser());
+app.use(morgan("combined"));
+app.use(auth.passport.initialize());
+app.use(auth.passport.session());
+
+// GOOGLE
+app.get(
+  "/google",
+  auth.passport.authenticate("google", {
+    scope: ["profile", "email"]
+  })
+);
+
+app.get(
+  "/auth/google/callback",
+  auth.passport.authenticate(
+    "google",
+    {
+      failureRedirect: `${process.env.CLIENTURL}/login`,
+      successRedirect: `${process.env.CLIENTURL}/`
+    },
+    async user => {
+      // todo redirect users to client accordingly
+      console.log(user);
+    }
+  )
+);
+
+app.get("/api/greeting", (req, res) => {
+  const name = req.query.name || "World";
+  res.setHeader("Content-Type", "application/json");
+  res.send(JSON.stringify({ greeting: `Hello ${name}!` }));
+});
 
 const getMe = async req => {
   const token = req.headers["x-token"];
-
-  if (token) {
+  const refreshToken = req.headers["refresh-token"];
+  if (token && refreshToken) {
     try {
-      return await jwt.verify(token, process.env.SECRET);
+      // Lets get data from tokens
+      let dataToken = jwt.verify(token, process.env.SECRET, (err, decoded) => {
+        if (err) {
+          return jwt.verify(
+            refreshToken,
+            process.env.SECRET,
+            (err, decoded) => {
+              if (err) {
+                return jwt.decode(refreshToken, process.env.SECRET);
+              }
+              return decoded;
+            }
+          );
+        }
+        return decoded;
+      });
+      const user = await models.User.findByPk(dataToken.id);
+
+      // Compare if user exist and if count is same as count in DB
+      if (!user || user.count !== dataToken.count) {
+        // models.User.findByPk(dataToken.id).then(user => {
+        //   return user.increment("count", { by: 1 });
+        // });
+        throw new AuthenticationError("tokens not valid");
+      }
+
+      // Creates the new tokens if user exist
+      const tokens = createTokens(dataToken, process.env.SECRET, "15d");
+
+      user.data = jwt.verify(tokens.accessToken, process.env.SECRET);
+
+      return {
+        id: user.data.id,
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken
+      };
     } catch (e) {
-      throw new AuthenticationError("Your session expired. Sign in again.");
+      console.log(e);
+      throw new AuthenticationError("Tokens expired");
     }
   }
 };
@@ -42,7 +115,7 @@ const server = new ApolloServer({
       message
     };
   },
-  context: async ({req, connection}) => {
+  context: async ({ req, res, connection }) => {
     if (connection) {
       return {
         models,
@@ -58,6 +131,8 @@ const server = new ApolloServer({
       return {
         models,
         me,
+        req,
+        res,
         secret: process.env.SECRET,
         loaders: {
           user: new DataLoader(keys => loaders.user.batchUsers(keys, models))
@@ -67,7 +142,7 @@ const server = new ApolloServer({
   }
 });
 
-server.applyMiddleware({app, path: "/graphql"});
+server.applyMiddleware({ app, path: "/graphql" });
 
 const httpServer = http.createServer(app);
 server.installSubscriptionHandlers(httpServer);
@@ -75,55 +150,10 @@ server.installSubscriptionHandlers(httpServer);
 const isTest = !!process.env.TEST_DATABASE;
 const port = 8000;
 
-sequelize.sync({force: isTest}).then(async () => {
-  if (isTest) {
-    createUsersWithMessages(new Date());
-  }
-
-  httpServer.listen({port}, () => {
+sequelize.sync().then(async () => {
+  httpServer.listen({ port }, () => {
     console.log(
       `Server 📦 is running 🏃 at port  http://localhost:${port}/graphql`
     );
   });
 });
-
-const createUsersWithMessages = async date => {
-  await models.User.create(
-    {
-      username: "rwieruch",
-      email: "hello@robin.com",
-      password: "rwieruch",
-      role: "ADMIN",
-      messages: [
-        {
-          text: "Published the Road to learn React",
-          createdAt: date.setSeconds(date.getSeconds() + 1)
-        }
-      ]
-    },
-    {
-      include: [models.Message]
-    }
-  );
-
-  await models.User.create(
-    {
-      username: "ddavids",
-      email: "hello@david.com",
-      password: "ddavids",
-      messages: [
-        {
-          text: "Happy to release ...",
-          createdAt: date.setSeconds(date.getSeconds() + 1)
-        },
-        {
-          text: "Published a complete ...",
-          createdAt: date.setSeconds(date.getSeconds() + 1)
-        }
-      ]
-    },
-    {
-      include: [models.Message]
-    }
-  );
-};

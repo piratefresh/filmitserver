@@ -2,6 +2,8 @@ import jwt from "jsonwebtoken";
 import { combineResolvers } from "graphql-resolvers";
 import { AuthenticationError, UserInputError } from "apollo-server";
 import cloudinary from "cloudinary";
+import { authenticateGoogle } from "../passport";
+import bcrypt from "bcrypt";
 
 import { isAdmin } from "./authorization";
 
@@ -11,9 +13,16 @@ cloudinary.config({
   api_secret: "a676b67565c6767a6767d6767f676fe1"
 });
 
-const createToken = async (user, secret, expiresIn) => {
+const createAccessToken = async (user, secret, expiresIn) => {
   const { id, email, username, role } = user;
   return await jwt.sign({ id, email, username, role }, secret, {
+    expiresIn
+  });
+};
+
+const createRefreshToken = async (user, secret, expiresIn) => {
+  const { id, count } = user;
+  return await jwt.sign({ id, count }, secret, {
     expiresIn
   });
 };
@@ -30,8 +39,11 @@ export default {
       if (!me) {
         return null;
       }
-      console.log(me);
-      return await models.User.findByPk(me.id);
+      const data = await models.User.findByPk(me.id);
+      data.accessToken = me.accessToken;
+      data.refreshToken = me.refreshToken;
+
+      return await data;
     }
   },
 
@@ -41,13 +53,19 @@ export default {
       { username, email, password },
       { models, secret }
     ) => {
+      const saltRounds = 10;
+      hashedPassword = await bcrypt.hash(password, saltRounds);
+
       const user = await models.User.create({
         username,
         email,
-        password
+        password: hashedPassword
       });
 
-      return { token: createToken(user, secret, "30m") };
+      return {
+        token: createAccessToken(user, secret, "30m"),
+        refreshToken: createRefreshToken(user, secret, "15min")
+      };
     },
 
     signIn: async (parent, { login, password }, { models, secret }) => {
@@ -63,7 +81,49 @@ export default {
         throw new AuthenticationError("Invalid password.");
       }
 
-      return { token: createToken(user, secret, "30m") };
+      return {
+        token: createAccessToken(user, secret, "1min"),
+        refreshToken: createRefreshToken(user, secret, "15min")
+      };
+    },
+
+    authGoogle: async (_, { input: { accessToken } }, { req, res }) => {
+      req.body = {
+        ...req.body,
+        access_token: accessToken
+      };
+
+      try {
+        // data contains the accessToken, refreshToken and profile from passport
+        const { data, info } = await authenticateGoogle(req, res);
+        console.log(data);
+
+        if (data) {
+          const user = await User.upsertGoogleUser(data);
+
+          console.log(data);
+
+          if (user) {
+            return {
+              name: user.name,
+              token: user.generateJWT()
+            };
+          }
+        }
+
+        if (info) {
+          console.log(info);
+          switch (info.code) {
+            case "ETIMEDOUT":
+              return new Error("Failed to reach Google: Try Again");
+            default:
+              return new Error("something went wrong");
+          }
+        }
+        return Error("server error");
+      } catch (error) {
+        return error;
+      }
     },
 
     deleteUser: combineResolvers(
