@@ -4,28 +4,17 @@ import { AuthenticationError, UserInputError } from "apollo-server";
 import cloudinary from "cloudinary";
 import { authenticateGoogle } from "../passport";
 import bcrypt from "bcrypt";
+import { sendRefreshToken } from "../sendRefreshToken";
 
 import { isAdmin } from "./authorization";
+import { createAccessToken, createRefreshToken } from "../auth";
+import { access } from "fs";
 
 cloudinary.config({
   cloud_name: "da91pbpmj",
   api_key: "446621691525293",
   api_secret: "a676b67565c6767a6767d6767f676fe1"
 });
-
-const createAccessToken = async (user, secret, expiresIn) => {
-  const { id, email, username, role } = user;
-  return await jwt.sign({ id, email, username, role }, secret, {
-    expiresIn
-  });
-};
-
-const createRefreshToken = async (user, secret, expiresIn) => {
-  const { id, count } = user;
-  return await jwt.sign({ id, count }, secret, {
-    expiresIn
-  });
-};
 
 export default {
   Query: {
@@ -35,15 +24,25 @@ export default {
     user: async (parent, { id }, { models }) => {
       return await models.User.findByPk(id);
     },
-    me: async (parent, args, { models, me }) => {
-      if (!me) {
+    me: async (parent, args, { models, me, req }) => {
+      const authorization = await req.headers["authorization"];
+      if (!authorization) {
         return null;
       }
-      const data = await models.User.findByPk(me.id);
-      data.accessToken = me.accessToken;
-      data.refreshToken = me.refreshToken;
+      try {
+        const token = await authorization.split(" ")[1];
+        console.log(token);
+        const payload = await jwt.verify(token, process.env.ACCESS_SECRET);
+        return await models.User.findByPk(payload.id);
+      } catch (err) {
+        console.log(err);
+        return null;
+      }
+      // if (!me) {
+      //   return null;
+      // }
 
-      return await data;
+      // return await models.User.findByPk(me.id);
     }
   },
 
@@ -53,24 +52,24 @@ export default {
       { username, email, password },
       { models, secret }
     ) => {
-      const saltRounds = 10;
-      hashedPassword = await bcrypt.hash(password, saltRounds);
-
       const user = await models.User.create({
         username,
         email,
-        password: hashedPassword
+        password
       });
 
       return {
-        token: createAccessToken(user, secret, "30m"),
-        refreshToken: createRefreshToken(user, secret, "15min")
+        token: createAccessToken(user)
       };
     },
 
-    signIn: async (parent, { login, password }, { models, secret }) => {
+    signIn: async (
+      parent,
+      { login, password },
+      { models, secret, req, res }
+    ) => {
       const user = await models.User.findByLogin(login);
-
+      const { id, username, email, role } = user;
       if (!user) {
         throw new UserInputError("No user found with this login credentials.");
       }
@@ -81,48 +80,51 @@ export default {
         throw new AuthenticationError("Invalid password.");
       }
 
+      const refreshToken = await createRefreshToken(user);
+      sendRefreshToken(res, refreshToken);
+      const accessToken = await createAccessToken(user);
       return {
-        token: createAccessToken(user, secret, "1min"),
-        refreshToken: createRefreshToken(user, secret, "15min")
+        accessToken,
+        user
       };
     },
 
-    authGoogle: async (_, { input: { accessToken } }, { req, res }) => {
+    authGoogle: async (_, { input: { accessToken } }, { models, req, res }) => {
       req.body = {
         ...req.body,
         access_token: accessToken
       };
-
       try {
-        // data contains the accessToken, refreshToken and profile from passport
         const { data, info } = await authenticateGoogle(req, res);
+        const { profile } = await data;
         console.log(data);
 
-        if (data) {
-          const user = await User.upsertGoogleUser(data);
+        let user = await models.User.findByLogin(profile.emails[0].value);
 
-          console.log(data);
-
-          if (user) {
-            return {
-              name: user.name,
-              token: user.generateJWT()
-            };
-          }
+        if (user) {
+          const refreshToken = await createRefreshToken(user);
+          sendRefreshToken(res, refreshToken);
+          return {
+            accessToken: createAccessToken(user),
+            user
+          };
         }
 
-        if (info) {
-          console.log(info);
-          switch (info.code) {
-            case "ETIMEDOUT":
-              return new Error("Failed to reach Google: Try Again");
-            default:
-              return new Error("something went wrong");
-          }
-        }
-        return Error("server error");
-      } catch (error) {
-        return error;
+        user = await models.User.create({
+          username: profile.id,
+          email: profile.emails[0].value,
+          password: profile.id
+        });
+
+        const refreshToken = await createRefreshToken(user);
+        await sendRefreshToken(res, refreshToken);
+        const accessToken = await createAccessToken(user);
+        return {
+          accessToken,
+          user
+        };
+      } catch (err) {
+        return err;
       }
     },
 
@@ -134,6 +136,13 @@ export default {
         });
       }
     ),
+
+    revokeRefreshTokensForUser: async (_, { userId }, { models }) => {
+      const user = await models.User.findByPk(userId);
+      user.increment("tokenVersion", { by: 1 });
+
+      return true;
+    },
 
     uploadAvatar: async (parent, { id, imageUrl }, { models }, info) => {
       console.log(`file: ${imageUrl} ID: ${id}`);

@@ -10,13 +10,13 @@ export default gql`
     signUp(username: String!, email: String!, password: String!): Token!
     signIn(login: String!, password: String!): Token!
     authFacebook(input: AuthInput!): AuthResponse
-    authGoogle(input: AuthInput!): AuthResponse
+    authGoogle(input: AuthInput!): Token!
     deleteUser(id: ID!): Boolean!
     uploadAvatar(imageUrl: String!): User
+    revokeRefreshTokensForUser(userId: Int!): Boolean!
   }
   type Token {
-    token: String!
-    refreshToken: String!
+    accessToken: String!
   }
   input AuthInput {
     accessToken: String!
@@ -29,14 +29,13 @@ export default gql`
     id: ID!
     username: String!
     email: String!
+    tokenVersion: String!
     role: String
     messages: [Message!]
     bio: String
     rating: Int
     socials: [Social]
     avatar: String
-    refreshToken: String!
-    accessToken: String!
   }
   type Social {
     portfolio: String

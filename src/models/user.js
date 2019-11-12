@@ -25,7 +25,7 @@ const user = (sequelize, DataTypes) => {
     role: {
       type: DataTypes.STRING
     },
-    count: {
+    tokenVersion: {
       type: DataTypes.INTEGER,
       defaultValue: 0
     }
@@ -45,13 +45,13 @@ const user = (sequelize, DataTypes) => {
         where: { email: login }
       });
     }
-
+    console.log(user);
     return user;
   };
 
-  // User.beforeCreate(async user => {
-  //   user.password = await user.generatePasswordHash();
-  // });
+  User.beforeCreate(async user => {
+    user.password = await user.generatePasswordHash();
+  });
 
   User.prototype.generatePasswordHash = async function() {
     const saltRounds = 10;

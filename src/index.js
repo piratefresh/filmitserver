@@ -12,14 +12,20 @@ import schema from "./schema";
 import resolvers from "./resolvers";
 import models, { sequelize } from "./models";
 import loaders from "./loaders";
-import { createTokens } from "./auth";
+import { createRefreshToken, createAccessToken } from "./auth";
 import auth from "./passport";
+import { sendRefreshToken } from "./sendRefreshToken";
 
 const app = express();
 
-app.use(cors());
+app.use(
+  cors({
+    origin: "http://localhost:3000",
+    credentials: true
+  })
+);
 app.use(cookieParser());
-app.use(morgan("combined"));
+app.use(morgan("dev"));
 app.use(auth.passport.initialize());
 app.use(auth.passport.session());
 
@@ -27,78 +33,73 @@ app.use(auth.passport.session());
 app.get(
   "/google",
   auth.passport.authenticate("google", {
+    session: false,
     scope: ["profile", "email"]
   })
 );
 
-app.get(
-  "/auth/google/callback",
+app.get("/auth/google/callback", async (req, res, next) => {
   auth.passport.authenticate(
     "google",
     {
-      failureRedirect: `${process.env.CLIENTURL}/login`,
-      successRedirect: `${process.env.CLIENTURL}/`
+      failureRedirect: `${process.env.CLIENTURL}/login`
+      // successRedirect: `${process.env.CLIENTURL}/index`,
     },
-    async user => {
-      // todo redirect users to client accordingly
-      console.log(user);
+    (err, data, info) => {
+      req.logIn(data, async function(err) {
+        if (err) {
+          return next(err);
+        }
+        console.log(data);
+        res.cookie("gtoken", data.token, {});
+        return res.redirect(process.env.CLIENTURL);
+      });
     }
-  )
-);
-
-app.get("/api/greeting", (req, res) => {
-  const name = req.query.name || "World";
-  res.setHeader("Content-Type", "application/json");
-  res.send(JSON.stringify({ greeting: `Hello ${name}!` }));
+  )(req, res, next);
 });
 
-const getMe = async req => {
-  const token = req.headers["x-token"];
-  const refreshToken = req.headers["refresh-token"];
-  if (token && refreshToken) {
-    try {
-      // Lets get data from tokens
-      let dataToken = jwt.verify(token, process.env.SECRET, (err, decoded) => {
-        if (err) {
-          return jwt.verify(
-            refreshToken,
-            process.env.SECRET,
-            (err, decoded) => {
-              if (err) {
-                return jwt.decode(refreshToken, process.env.SECRET);
-              }
-              return decoded;
-            }
-          );
-        }
-        return decoded;
-      });
-      const user = await models.User.findByPk(dataToken.id);
-
-      // Compare if user exist and if count is same as count in DB
-      if (!user || user.count !== dataToken.count) {
-        // models.User.findByPk(dataToken.id).then(user => {
-        //   return user.increment("count", { by: 1 });
-        // });
-        throw new AuthenticationError("tokens not valid");
-      }
-
-      // Creates the new tokens if user exist
-      const tokens = createTokens(dataToken, process.env.SECRET, "15d");
-
-      user.data = jwt.verify(tokens.accessToken, process.env.SECRET);
-
-      return {
-        id: user.data.id,
-        accessToken: tokens.accessToken,
-        refreshToken: tokens.refreshToken
-      };
-    } catch (e) {
-      console.log(e);
-      throw new AuthenticationError("Tokens expired");
-    }
+app.post("/refresh_token", async (req, res) => {
+  const token = await req.cookies.jid;
+  if (!token) {
+    return res.send({ ok: false, accessToken: "" });
   }
-};
+
+  let payload = null;
+  try {
+    payload = await jwt.verify(token, process.env.REFRESH_SECRET);
+  } catch (err) {
+    console.log(err);
+    return res.send({ ok: false, accessToken: "" });
+  }
+
+  // token is valid and we can send back an access token
+  const user = await models.User.findByPk(payload.id);
+  if (!user) {
+    return res.send({ ok: false, accessToken: "" });
+  }
+
+  if (user.tokenVersion !== payload.tokenVersion) {
+    return res.send({ ok: false, accessToken: "" });
+  }
+  const newAccessToken = await createAccessToken(user);
+
+  const refreshToken = await createRefreshToken(user);
+  sendRefreshToken(res, refreshToken);
+
+  return res.send({ ok: true, accessToken: newAccessToken });
+});
+
+// const getMe = async req => {
+//   const token = req.headers["x-token"];
+
+//   if (token) {
+//     try {
+//       return await jwt.verify(token, process.env.ACCESS_SECRET);
+//     } catch (e) {
+//       throw new AuthenticationError("Your session expired. Sign in again.");
+//     }
+//   }
+// };
 
 const server = new ApolloServer({
   typeDefs: schema,
@@ -126,14 +127,11 @@ const server = new ApolloServer({
     }
 
     if (req) {
-      const me = await getMe(req);
-
       return {
         models,
-        me,
         req,
         res,
-        secret: process.env.SECRET,
+        secret: process.env.ACCESS_SECRET,
         loaders: {
           user: new DataLoader(keys => loaders.user.batchUsers(keys, models))
         }
@@ -142,7 +140,7 @@ const server = new ApolloServer({
   }
 });
 
-server.applyMiddleware({ app, path: "/graphql" });
+server.applyMiddleware({ app, cors: false, path: "/graphql" });
 
 const httpServer = http.createServer(app);
 server.installSubscriptionHandlers(httpServer);

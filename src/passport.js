@@ -1,16 +1,17 @@
-var passport = require("passport");
-var GoogleStrategy = require("passport-google-oauth").OAuth2Strategy;
+const passport = require("passport");
+const { Strategy: GoogleTokenStrategy } = require("passport-google-token");
+const GoogleStrategy = require("passport-google-oauth20").Strategy;
 import models, { sequelize } from "./models";
 import { createTokens } from "./auth";
 
 passport.serializeUser(function(user, done) {
-  console.log(user);
-  done(null, user.id);
+  done(null, user);
 });
 
-passport.deserializeUser(function(user, done) {
-  console.log(user);
-  done(null, user);
+passport.deserializeUser(function(id, done) {
+  models.User.findById(id)
+    .then(user => done(null, user))
+    .catch(done);
 });
 
 // Use the GoogleStrategy within Passport.
@@ -18,31 +19,41 @@ passport.deserializeUser(function(user, done) {
 //   credentials (in this case, a token, tokenSecret, and Google profile), and
 //   invoke a callback with a user object.
 passport.use(
+  new GoogleTokenStrategy(
+    {
+      clientID: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      callbackURL: `/auth/google/callback`
+    },
+    function(token, refreshToken, profile, done) {
+      done(null, { profile, token, refreshToken });
+    }
+  )
+);
+
+const authenticateGoogle = (req, res) =>
+  new Promise((resolve, reject) => {
+    passport.authenticate(
+      "google-token",
+      { session: false },
+      (err, data, info) => {
+        if (err) reject(err);
+        resolve({ data, info });
+      }
+    )(req, res);
+  });
+
+passport.use(
   new GoogleStrategy(
     {
       clientID: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
       callbackURL: `/auth/google/callback`
     },
-    async (req, token, tokenSecret, profile, done) => {
-      const email = await profile.emails[0].value;
-      try {
-        const user = await models.User.findByLogin(email);
-        if (!user) {
-          let user = await models.User.create({
-            username: profile.id,
-            email: email,
-            password: null
-          });
-          return await user;
-        }
-        console.log(user);
-        done(null, user);
-      } catch (e) {
-        done(null, user);
-      }
+    function(token, refreshToken, profile, done) {
+      done(null, { profile, token, refreshToken });
     }
   )
 );
 
-module.exports = { passport: passport };
+module.exports = { passport: passport, authenticateGoogle };
