@@ -7,6 +7,7 @@ import express from "express";
 import cookieParser from "cookie-parser";
 import { ApolloServer, AuthenticationError } from "apollo-server-express";
 import morgan from "morgan";
+import avatarsMiddleware from "adorable-avatars";
 
 import schema from "./schema";
 import resolvers from "./resolvers";
@@ -26,6 +27,7 @@ app.use(
 );
 app.use(cookieParser());
 app.use(morgan("dev"));
+app.use("/myAvatars", avatarsMiddleware);
 app.use(auth.passport.initialize());
 app.use(auth.passport.session());
 

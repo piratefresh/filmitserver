@@ -8,15 +8,20 @@ export default gql`
   }
   extend type Mutation {
     signUp(username: String!, email: String!, password: String!): Token!
-    signIn(login: String!, password: String!): Token!
+    signIn(login: String!, password: String!): LoginResponse!
+    signOut: Boolean
     authFacebook(input: AuthInput!): AuthResponse
-    authGoogle(input: AuthInput!): Token!
+    authGoogle(input: AuthInput!): LoginResponse!
     deleteUser(id: ID!): Boolean!
     uploadAvatar(imageUrl: String!): User
     revokeRefreshTokensForUser(userId: Int!): Boolean!
   }
   type Token {
     accessToken: String!
+  }
+  type LoginResponse {
+    accessToken: String!
+    user: User!
   }
   input AuthInput {
     accessToken: String!

@@ -8,7 +8,6 @@ import { sendRefreshToken } from "../sendRefreshToken";
 
 import { isAdmin } from "./authorization";
 import { createAccessToken, createRefreshToken } from "../auth";
-import { access } from "fs";
 
 cloudinary.config({
   cloud_name: "da91pbpmj",
@@ -97,7 +96,7 @@ export default {
       try {
         const { data, info } = await authenticateGoogle(req, res);
         const { profile } = await data;
-        console.log(data);
+        console.log(profile.emails[0].value);
 
         let user = await models.User.findByLogin(profile.emails[0].value);
 
@@ -126,6 +125,12 @@ export default {
       } catch (err) {
         return err;
       }
+    },
+
+    signOut: async (_, args, { req, res }) => {
+      sendRefreshToken(res, "");
+
+      return true;
     },
 
     deleteUser: combineResolvers(
