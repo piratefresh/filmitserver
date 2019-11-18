@@ -133,6 +133,25 @@ export default {
       return true;
     },
 
+    updateProfile: async (
+      parent,
+      { id, username, email, homepage, bio },
+      { models },
+      info
+    ) => {
+      try {
+        await models.User.update(
+          { username, email, homepage, bio },
+          { where: { id, username }, returning: true }
+        );
+        const user = await models.User.findOne({ where: { id, username } });
+        return await user;
+      } catch (err) {
+        console.log(user);
+        handleError(err);
+      }
+    },
+
     deleteUser: combineResolvers(
       isAdmin,
       async (parent, { id }, { models }) => {

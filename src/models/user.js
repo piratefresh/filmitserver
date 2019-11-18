@@ -25,6 +25,12 @@ const user = (sequelize, DataTypes) => {
     role: {
       type: DataTypes.STRING
     },
+    homepage: {
+      type: DataTypes.STRING
+    },
+    bio: {
+      type: DataTypes.STRING
+    },
     tokenVersion: {
       type: DataTypes.INTEGER,
       defaultValue: 0

@@ -13,6 +13,13 @@ export default gql`
     authFacebook(input: AuthInput!): AuthResponse
     authGoogle(input: AuthInput!): LoginResponse!
     deleteUser(id: ID!): Boolean!
+    updateProfile(
+      id: ID!
+      username: String!
+      email: String!
+      homepage: String
+      bio: String
+    ): User
     uploadAvatar(imageUrl: String!): User
     revokeRefreshTokensForUser(userId: Int!): Boolean!
   }
@@ -38,6 +45,7 @@ export default gql`
     role: String
     messages: [Message!]
     bio: String
+    homepage: String
     rating: Int
     socials: [Social]
     avatar: String
