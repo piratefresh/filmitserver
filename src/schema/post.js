@@ -1,4 +1,4 @@
-import {gql} from "apollo-server-express";
+import { gql } from "apollo-server-express";
 
 export default gql`
   extend type Query {
@@ -9,8 +9,8 @@ export default gql`
     createPost(
       text: String!
       title: String!
-      startDate: String
-      endDate: String
+      startDate: Date
+      endDate: Date
       tags: [String]
       category: [String]
     ): Post!
@@ -24,8 +24,8 @@ export default gql`
     id: ID!
     text: String!
     title: String!
-    startDate: String!
-    endDate: String!
+    startDate: Date
+    endDate: Date
     tags: [String!]
     createdAt: Date!
     user: User!
