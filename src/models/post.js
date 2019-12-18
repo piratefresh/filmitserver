@@ -18,6 +18,30 @@ const post = (sequelize, DataTypes) => {
         }
       }
     },
+    postImage: {
+      type: DataTypes.STRING,
+      validate: {
+        notEmpty: {
+          args: true,
+          msg: "A post needs image"
+        }
+      }
+    },
+    location: {
+      type: DataTypes.STRING,
+      validate: {
+        notEmpty: {
+          args: true,
+          msg: "A post needs location"
+        }
+      }
+    },
+    lat: {
+      type: DataTypes.FLOAT
+    },
+    lng: {
+      type: DataTypes.FLOAT
+    },
     category: {
       type: DataTypes.ARRAY(DataTypes.STRING),
       validate: {

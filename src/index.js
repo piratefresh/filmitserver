@@ -14,6 +14,7 @@ import resolvers from "./resolvers";
 import models, { sequelize } from "./models";
 import loaders from "./loaders";
 import { createRefreshToken, createAccessToken } from "./auth";
+import { getMe } from "./auth/getMe";
 import auth from "./passport";
 import { sendRefreshToken } from "./sendRefreshToken";
 
@@ -129,10 +130,12 @@ const server = new ApolloServer({
     }
 
     if (req) {
+      const me = await getMe(req);
       return {
         models,
         req,
         res,
+        me,
         secret: process.env.ACCESS_SECRET,
         loaders: {
           user: new DataLoader(keys => loaders.user.batchUsers(keys, models))

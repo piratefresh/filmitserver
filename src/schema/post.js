@@ -2,17 +2,19 @@ import { gql } from "apollo-server-express";
 
 export default gql`
   extend type Query {
-    posts(cursor: String, limit: Int): PostConnection!
+    posts(cursor: String, limit: Int, filter: String): PostConnection!
     post(id: ID!): Message!
   }
   extend type Mutation {
     createPost(
       text: String!
       title: String!
-      startDate: Date
-      endDate: Date
+      postImage: String!
       tags: [String]
       category: [String]
+      location: String!
+      lat: Float!
+      lng: Float!
     ): Post!
     deletePost(id: ID!): Boolean!
   }
@@ -24,12 +26,14 @@ export default gql`
     id: ID!
     text: String!
     title: String!
-    startDate: Date
-    endDate: Date
     tags: [String!]
     createdAt: Date!
     user: User!
     category: [String!]
+    postImage: String!
+    location: String!
+    lat: Float!
+    lng: Float!
   }
   extend type Subscription {
     postCreated: PostCreated!
