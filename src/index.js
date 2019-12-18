@@ -158,5 +158,6 @@ sequelize.sync().then(async () => {
     console.log(
       `Server 📦 is running 🏃 at port  http://localhost:${port}/graphql`
     );
+    console.log(`🚀 Subscriptions ready at ws://localhost:${port}${server.subscriptionsPath}`)
   });
 });

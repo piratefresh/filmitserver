@@ -12,7 +12,12 @@ const fromCursorHash = string =>
 
 export default {
   Query: {
-    posts: async (parent, { cursor, limit = 100, filter }, { models }) => {
+    queryPosts: async (
+      parent,
+      { cursor, limit = 100, offset, filter },
+      { models }
+    ) => {
+      console.log(cursor);
       const cursorOptions = cursor
         ? {
             where: {
@@ -23,18 +28,22 @@ export default {
           }
         : {};
 
+      let whereStatement = {};
+      if (filter) whereStatement = { [Sequelize.Op.like]: `%${filter}%` };
+
       const posts = await models.Post.findAll({
         order: [["createdAt", "DESC"]],
         where: {
-          [Op.or]: [
-            { title: { [Op.like]: `%${filter}%` } },
-            { text: { [Op.like]: `%${filter}%` } },
-            { location: { [Op.like]: `%${filter}%` } },
-            { category: { [Op.like]: `%${filter}%` } },
-            { tags: { [Op.like]: `%${filter}%` } },
+          [Sequelize.Op.or]: [
+            { title: filter ? whereStatement : undefined },
+            { text: filter ? whereStatement : undefined },
+            { location: filter ? whereStatement : undefined },
+            { category: filter ? whereStatement : undefined },
+            { tags: filter ? whereStatement : undefined }
           ]
         },
         limit: limit + 1,
+        offset: offset,
         ...cursorOptions
       });
 
@@ -52,7 +61,11 @@ export default {
     post: async (parent, { id }, { models }) => {
       return await models.Post.findByPk(id);
     },
-    posts: async (parent, { cursor, limit = 100, filter }, { models }) => {
+    posts: async (
+      parent,
+      { cursor, limit = 100, offset, filter },
+      { models }
+    ) => {
       const cursorOptions = cursor
         ? {
             where: {
@@ -66,6 +79,7 @@ export default {
       const posts = await models.Post.findAll({
         order: [["createdAt", "DESC"]],
         limit: limit + 1,
+        offset: offset,
         ...cursorOptions
       });
 
@@ -79,7 +93,7 @@ export default {
           endCursor: toCursorHash(edges[edges.length - 1].createdAt.toString())
         }
       };
-    },
+    }
   },
 
   Mutation: {

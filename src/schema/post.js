@@ -2,7 +2,13 @@ import { gql } from "apollo-server-express";
 
 export default gql`
   extend type Query {
-    posts(cursor: String, limit: Int, filter: String): PostConnection!
+    posts(cursor: String, limit: Int, offset: Int): PostConnection!
+    queryPosts(
+      cursor: String
+      limit: Int
+      offset: Int
+      filter: String
+    ): PostConnection!
     post(id: ID!): Message!
   }
   extend type Mutation {
