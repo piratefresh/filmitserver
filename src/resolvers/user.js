@@ -188,6 +188,14 @@ export default {
           userId: user.id
         }
       });
+    },
+    posts: async (user, args, { models }) => {
+      console.log(user);
+      return await models.Post.findAll({
+        where: {
+          userId: user.id
+        }
+      });
     }
   }
 };

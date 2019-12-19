@@ -44,6 +44,7 @@ export default gql`
     tokenVersion: String!
     role: String
     messages: [Message!]
+    posts: [Post!]
     bio: String
     homepage: String
     rating: Int
