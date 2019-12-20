@@ -9,7 +9,7 @@ export default gql`
       offset: Int
       filter: String
     ): PostConnection!
-    post(id: ID!): Message!
+    post(id: ID!): Post!
   }
   extend type Mutation {
     createPost(
