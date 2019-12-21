@@ -102,7 +102,7 @@ export default {
       { text, title, postImage, tags, category, location, lng, lat },
       { models, me }
     ) => {
-      console.log(location);
+      console.log(me);
       const post = await models.Post.create({
         text,
         title,
