@@ -34,6 +34,66 @@ const user = (sequelize, DataTypes) => {
     tokenVersion: {
       type: DataTypes.INTEGER,
       defaultValue: 0
+    },
+    avatar: {
+      type: DataTypes.STRING
+    },
+    firstName: {
+      type: DataTypes.STRING
+    },
+    lastName: {
+      type: DataTypes.STRING
+    },
+    location: {
+      type: DataTypes.STRING
+    },
+    lat: {
+      type: DataTypes.FLOAT
+    },
+    lng: {
+      type: DataTypes.FLOAT
+    },
+    confirmed: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false
+    },
+    emailConfirmToken: {
+      type: DataTypes.STRING
+    },
+    linkedin: {
+      type: DataTypes.STRING
+    },
+    youtube: {
+      type: DataTypes.STRING
+    },
+    instagram: {
+      type: DataTypes.STRING
+    },
+    facebook: {
+      type: DataTypes.STRING
+    },
+    vimeo: {
+      type: DataTypes.STRING
+    },
+    Portfolio: {
+      type: DataTypes.JSON,
+      defaultValue: {},
+      validate: {
+        isSpecificLength(value) {
+          if (value.length >= 2) {
+            throw new Error("Portfolio can only have 3 items");
+          }
+        }
+      }
+    },
+    tags: {
+      type: DataTypes.ARRAY(DataTypes.STRING),
+      validate: {
+        notEmpty: {
+          args: true,
+          msg: "Post needs one ore more tag."
+        }
+      }
     }
   });
 
@@ -52,7 +112,6 @@ const user = (sequelize, DataTypes) => {
         where: { email: login }
       });
     }
-    console.log(user);
     return user;
   };
 

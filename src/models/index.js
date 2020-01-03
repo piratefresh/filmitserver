@@ -13,7 +13,9 @@ const sequelize = new Sequelize(
 const models = {
   User: sequelize.import("./user"),
   Message: sequelize.import("./message"),
-  Post: sequelize.import("./post")
+  Post: sequelize.import("./post"),
+  Chat: sequelize.import("./chat"),
+  Text: sequelize.import("./text")
 };
 
 Object.keys(models).forEach(key => {
@@ -22,6 +24,6 @@ Object.keys(models).forEach(key => {
   }
 });
 
-export {sequelize};
+export { sequelize };
 
 export default models;

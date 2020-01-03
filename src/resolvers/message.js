@@ -47,9 +47,12 @@ export default {
   Mutation: {
     createMessage: combineResolvers(
       isAuthenticated,
-      async (parent, { text }, { models, me }) => {
+      async (parent, { text, receiverId }, { models, me }) => {
+        const chatId = uuid();
         const message = await models.Message.create({
           text,
+          receiverId,
+          chatId,
           userId: me.id
         });
 

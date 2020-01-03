@@ -8,6 +8,9 @@ import cookieParser from "cookie-parser";
 import { ApolloServer, AuthenticationError } from "apollo-server-express";
 import morgan from "morgan";
 import avatarsMiddleware from "adorable-avatars";
+import cloudinary from "cloudinary";
+import multer from "multer";
+import cloudinaryStorage from "multer-storage-cloudinary";
 
 import schema from "./schema";
 import resolvers from "./resolvers";
@@ -32,6 +35,27 @@ app.use("/myAvatars", avatarsMiddleware);
 app.use(auth.passport.initialize());
 app.use(auth.passport.session());
 
+cloudinary.v2.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
+});
+
+const storage = multer.diskStorage({
+  filename: function(req, file, callback) {
+    callback(null, Date.now() + file.originalname);
+  }
+});
+const imageFilter = function(req, file, cb) {
+  // accept image files only
+  if (!file.originalname.match(/\.(jpg|jpeg|png|gif)$/i)) {
+    return cb(new Error("Only image files are allowed!"), false);
+  }
+  cb(null, true);
+};
+const upload = multer({ storage: storage, fileFilter: imageFilter });
+
+const parser = multer({ storage: storage });
 // GOOGLE
 app.get(
   "/google",
@@ -92,6 +116,20 @@ app.post("/refresh_token", async (req, res) => {
   return res.send({ ok: true, accessToken: newAccessToken });
 });
 
+app.post(
+  "/api/portfolio/uploadImage",
+  upload.single("file"),
+  async (req, res, next) => {
+    console.log(req.userId);
+    const result = await cloudinary.v2.uploader.upload(req.file.path, {
+      folder: `filmit/portfolio/${req.file.userId}`
+    });
+    console.log(result);
+
+    return res.send(result);
+  }
+);
+
 // const getMe = async req => {
 //   const token = req.headers["x-token"];
 
@@ -131,6 +169,7 @@ const server = new ApolloServer({
 
     if (req) {
       const me = await getMe(req);
+
       return {
         models,
         req,
@@ -158,6 +197,8 @@ sequelize.sync().then(async () => {
     console.log(
       `Server 📦 is running 🏃 at port  http://localhost:${port}/graphql`
     );
-    console.log(`🚀 Subscriptions ready at ws://localhost:${port}${server.subscriptionsPath}`)
+    console.log(
+      `🚀 Subscriptions ready at ws://localhost:${port}${server.subscriptionsPath}`
+    );
   });
 });

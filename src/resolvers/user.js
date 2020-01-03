@@ -3,22 +3,61 @@ import { combineResolvers } from "graphql-resolvers";
 import { AuthenticationError, UserInputError } from "apollo-server";
 import cloudinary from "cloudinary";
 import { authenticateGoogle } from "../passport";
-import bcrypt from "bcrypt";
 import { sendRefreshToken } from "../sendRefreshToken";
+import { v4 as uuid } from "uuid";
 
 import { isAdmin } from "./authorization";
 import { createAccessToken, createRefreshToken } from "../auth";
+import { sendEmail } from "../sendEmail";
 
 cloudinary.config({
-  cloud_name: "da91pbpmj",
-  api_key: "446621691525293",
-  api_secret: "a676b67565c6767a6767d6767f676fe1"
+  cloud_name: process.env.UNSPLASH_CLOUD_NAME,
+  api_key: process.env.UNSPLASH_API_KEY,
+  api_secret: process.env.UNSPLASH_API_SECRET
 });
+
+const toCursorHash = string => Buffer.from(string).toString("base64");
+
+const fromCursorHash = string =>
+  Buffer.from(string, "base64").toString("ascii");
 
 export default {
   Query: {
     users: async (parent, args, { models }) => {
       return await models.User.findAll();
+    },
+    queryUsers: async (
+      parent,
+      { cursor, limit = 100, offset, filter },
+      { models }
+    ) => {
+      const cursorOptions = cursor
+        ? {
+            where: {
+              createdAt: {
+                [Sequelize.Op.lt]: fromCursorHash(cursor)
+              }
+            }
+          }
+        : {};
+
+      const users = await models.User.findAll({
+        order: [["createdAt", "DESC"]],
+        limit: limit + 1,
+        offset: offset,
+        ...cursorOptions
+      });
+
+      const hasNextPage = users.length > limit;
+      const edges = hasNextPage ? users.slice(0, -1) : users;
+
+      return {
+        edges,
+        pageInfo: {
+          hasNextPage,
+          endCursor: toCursorHash(edges[edges.length - 1].createdAt.toString())
+        }
+      };
     },
     user: async (parent, { id }, { models }) => {
       return await models.User.findByPk(id);
@@ -51,14 +90,28 @@ export default {
       { username, email, password },
       { models, secret }
     ) => {
+      const userExists = await models.User.findByLogin(email || username);
+      if (userExists) {
+        throw new AuthenticationError("User Already Exists");
+      }
+      // Generate a random string for user email confirmation
+      const emailConfirmToken = uuid();
+
       const user = await models.User.create({
         username,
         email,
-        password
+        password,
+        emailConfirmToken
       });
 
+      await sendEmail(
+        email,
+        "Confirm Account",
+        `<span>Please click this link <a href="http://localhost:3000/confirm-email/${user.email}/${emailConfirmToken}">Click Here</a><span>`
+      );
+
       return {
-        token: createAccessToken(user)
+        accessToken: createAccessToken(user)
       };
     },
 
@@ -108,11 +161,15 @@ export default {
             user
           };
         }
-
+        nameArr = str.split(/(\s+)/);
+        const firstName = nameArr[0];
+        const lastName = nameArr[1];
         user = await models.User.create({
           username: profile.id,
           email: profile.emails[0].value,
-          password: profile.id
+          password: profile.id,
+          firstName,
+          lastName
         });
 
         const refreshToken = await createRefreshToken(user);
@@ -127,6 +184,39 @@ export default {
       }
     },
 
+    confirmEmail: async (_, { emailConfirmToken, email }, { models, me }) => {
+      console.log(emailConfirmToken, email);
+      if (!emailConfirmToken || !email) {
+        console.log("error 1");
+        throw new UserInputError("email token or email is not inputed");
+      }
+      let user = await models.User.findByLogin(email);
+      console.log(user);
+      if (!user) {
+        console.log("error 2");
+        throw new AuthenticationError("User Does not Exist");
+      }
+      if (user.emailConfirmToken !== emailConfirmToken || user.emailConfirmed) {
+        console.log("error 3");
+        throw new UserInputError("invalid token or email");
+      }
+
+      user = await models.User.update(
+        {
+          emailConfirmToken: "",
+          confirmed: true
+        },
+        { where: { email }, returning: true }
+      );
+
+      user = await models.User.findByLogin(email);
+
+      return {
+        accessToken: createAccessToken(user),
+        user: user
+      };
+    },
+
     signOut: async (_, args, { req, res }) => {
       sendRefreshToken(res, "");
 
@@ -135,20 +225,53 @@ export default {
 
     updateProfile: async (
       parent,
-      { id, username, email, homepage, bio },
+      {
+        id,
+        username,
+        email,
+        homepage,
+        bio,
+        avatar,
+        firstName,
+        lastName,
+        location,
+        lng,
+        lat,
+        facebook,
+        vimeo,
+        youtube,
+        linkedin,
+        instagram
+      },
       { models },
       info
     ) => {
       try {
         await models.User.update(
-          { username, email, homepage, bio },
+          {
+            username,
+            email,
+            homepage,
+            bio,
+            avatar,
+            firstName,
+            lastName,
+            location,
+            lng,
+            lat,
+            facebook,
+            vimeo,
+            youtube,
+            linkedin,
+            instagram
+          },
           { where: { id, username }, returning: true }
         );
         const user = await models.User.findOne({ where: { id, username } });
-        return await user;
+
+        return user;
       } catch (err) {
-        console.log(user);
-        handleError(err);
+        console.log(err);
       }
     },
 

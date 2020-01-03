@@ -5,6 +5,12 @@ export default gql`
     users: [User!]
     user(id: ID!): User
     me: User
+    queryUsers(
+      cursor: String
+      limit: Int
+      offset: Int
+      filter: String
+    ): UserConnection!
   }
   extend type Mutation {
     signUp(username: String!, email: String!, password: String!): Token!
@@ -13,12 +19,22 @@ export default gql`
     authFacebook(input: AuthInput!): AuthResponse
     authGoogle(input: AuthInput!): LoginResponse!
     deleteUser(id: ID!): Boolean!
+    confirmEmail(email: String!, emailConfirmToken: String!): LoginResponse!
     updateProfile(
       id: ID!
       username: String!
       email: String!
       homepage: String
       bio: String
+      avatar: String
+      firstName: String
+      lastName: String
+      location: String
+      facebook: String
+      instagram: String
+      youtube: String
+      linkedin: String
+      vimeo: String
     ): User
     uploadAvatar(imageUrl: String!): User
     revokeRefreshTokensForUser(userId: Int!): Boolean!
@@ -40,6 +56,8 @@ export default gql`
   type User {
     id: ID!
     username: String!
+    firstName: String
+    lastName: String
     email: String!
     tokenVersion: String!
     role: String
@@ -50,11 +68,25 @@ export default gql`
     rating: Int
     socials: [Social]
     avatar: String
+    location: String
+    lat: Float
+    lng: Float
+    portfolio: String
+    facebook: String
+    instagram: String
+    youtube: String
+    vimeo: String
+    linkedin: String
+  }
+  type UserConnection {
+    edges: [User!]!
+    pageInfo: PageInfo!
   }
   type Social {
     portfolio: String
     facebook: String
     instagram: String
+    youtube: String
     vimeo: String
   }
 `;

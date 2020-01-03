@@ -59,6 +59,10 @@ const post = (sequelize, DataTypes) => {
           msg: "Post needs one ore more tag."
         }
       }
+    },
+    active: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: true
     }
   });
   Post.associate = models => {
