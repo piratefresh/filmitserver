@@ -15,9 +15,9 @@ export default {
   Mutation: {
     createText: combineResolvers(
       isAuthenticated,
-      async (parent, { members, chatName, text }, { models, me }) => {
+      async (parent, { members, channelName, text }, { models, me }) => {
         try {
-          await models.Chat.update(
+          await models.Channel.update(
             {
               text: {
                 content: text,
@@ -29,10 +29,10 @@ export default {
               returning: true
             }
           );
-          const chat = await models.Chat.findOne({
+          const channel = await models.Channel.findOne({
             where: { receiverId: me.id, senderId: members[1] }
           });
-          return await chat;
+          return await channel;
         } catch (err) {
           console.log(err);
           throw new UserInputError(err);

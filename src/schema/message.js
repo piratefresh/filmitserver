@@ -6,7 +6,7 @@ export default gql`
     message(id: ID!): Message!
   }
   extend type Mutation {
-    createMessage(receiverId: ID!): Message!
+    createMessage(receiverId: ID!, content: String!): Message!
     deleteMessage(id: ID!): Boolean!
   }
   type MessageConnection {
@@ -19,19 +19,17 @@ export default gql`
   }
   type Message {
     id: ID!
-    chatId: String!
-    members: [Member!]
-    text: String!
+    content: String!
+    channelId: Int!
+    receiverId: User!
+    senderId: User!
     createdAt: Date!
     user: User!
   }
   extend type Subscription {
-    messageCreated: MessageCreated!
+    messageCreated(receiverId: Int!): MessageCreated!
   }
   type MessageCreated {
     message: Message!
-  }
-  type Member {
-    userId: String!
   }
 `;

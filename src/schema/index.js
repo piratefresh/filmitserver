@@ -3,7 +3,7 @@ import { gql } from "apollo-server-express";
 import userSchema from "./user";
 import messageSchema from "./message";
 import postSchema from "./post";
-import chatSchema from "./chat";
+import channelSchema from "./channel";
 import textSchema from "./text";
 // import fileSchema from "./file";
 
@@ -25,6 +25,6 @@ export default [
   userSchema,
   messageSchema,
   postSchema,
-  chatSchema,
+  channelSchema,
   textSchema
 ];

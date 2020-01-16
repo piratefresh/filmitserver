@@ -19,15 +19,15 @@ const text = (sequelize, DataTypes) => {
       }
     }
   });
-  Text.associate = models => {
-    Text.belongsTo(models.Chat, {
-      foreignKey: {
-        name: "chatId",
-        field: "chatId"
-      }
-    });
-    Text.belongsTo(models.User);
-  };
+  // Text.associate = models => {
+  //   Text.belongsTo(models.Chat, {
+  //     foreignKey: {
+  //       name: "chatId",
+  //       field: "chatId"
+  //     }
+  //   });
+  //   Text.belongsTo(models.User);
+  // };
   return Text;
 };
 export default text;
