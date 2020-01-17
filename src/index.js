@@ -10,6 +10,7 @@ import morgan from "morgan";
 import avatarsMiddleware from "adorable-avatars";
 import cloudinary from "cloudinary";
 import multer from "multer";
+import { checkIndices, checkConnection, index, esclient } from "./config/es";
 import cloudinaryStorage from "multer-storage-cloudinary";
 
 import schema from "./schema";
@@ -191,6 +192,20 @@ server.installSubscriptionHandlers(httpServer);
 
 const isTest = !!process.env.TEST_DATABASE;
 const port = 8000;
+
+// Init elasticsearch server
+async function runElasticServer() {
+  const isElasticReady = await checkConnection();
+  if (isElasticReady) {
+    const elasticIndex = await esclient.indices.exists({ index });
+
+    if (!elasticIndex.body) {
+      await elastic.createIndex(index);
+    }
+  }
+}
+
+runElasticServer();
 
 sequelize.sync().then(async () => {
   httpServer.listen({ port }, () => {

@@ -13,7 +13,13 @@ export default gql`
     ): UserConnection!
   }
   extend type Mutation {
-    signUp(username: String!, email: String!, password: String!): Token!
+    signUp(
+      username: String!
+      email: String!
+      password: String!
+      firstName: String!
+      lastName: String!
+    ): Token!
     signIn(login: String!, password: String!): LoginResponse!
     signOut: Boolean
     authFacebook(input: AuthInput!): AuthResponse

@@ -131,6 +131,17 @@ export default {
           );
         }
       )
+    },
+    messageCreated: {
+      subscribe: withFilter(
+        () => pubsub.asyncIterator(EVENTS.MESSAGE.CREATED),
+        (payload, variables) => {
+          console.log(payload.messageCreated);
+          return (
+            payload.messageCreated.message.receiverId === variables.receiverId
+          );
+        }
+      )
     }
   }
 };

@@ -87,7 +87,7 @@ export default {
   Mutation: {
     signUp: async (
       parent,
-      { username, email, password },
+      { username, email, password, firstName, lastName },
       { models, secret }
     ) => {
       const userExists = await models.User.findByLogin(email || username);
@@ -101,6 +101,8 @@ export default {
         username,
         email,
         password,
+        firstName,
+        lastName,
         emailConfirmToken
       });
 

@@ -15,7 +15,8 @@ const models = {
   Message: sequelize.import("./message"),
   Post: sequelize.import("./post"),
   Channel: sequelize.import("./channel"),
-  Text: sequelize.import("./text")
+  Text: sequelize.import("./text"),
+  Notification: sequelize.import("./notification")
 };
 
 Object.keys(models).forEach(key => {

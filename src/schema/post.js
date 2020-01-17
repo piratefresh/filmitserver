@@ -10,6 +10,7 @@ export default gql`
       filter: String
     ): PostConnection!
     post(id: ID!): Post!
+    searchPost(query: String!): [Post!]
   }
   extend type Mutation {
     createPost(

@@ -1,6 +1,6 @@
 import Sequelize from "sequelize";
 import { combineResolvers } from "graphql-resolvers";
-
+import { esclient, index, type } from "../config/es";
 import pubsub, { EVENTS } from "../subscription";
 import { isAuth } from "../auth/isAuth";
 import { isAuthenticated, isMessageOwner } from "./authorization";
@@ -93,6 +93,45 @@ export default {
           endCursor: toCursorHash(edges[edges.length - 1].createdAt.toString())
         }
       };
+    },
+    searchPost: async (parent, { query }, { models }) => {
+      const {
+        body: { hits }
+      } = await esclient.search({
+        index,
+        body: {
+          query: {
+            multi_match: {
+              query,
+              fields: ["title", "text", "location", "category", "tags"],
+              operator: "and",
+              fuzziness: "auto"
+              // fields: [
+              //   "text",
+              //   "title",
+              //   "location",
+              //   "category",
+              //   "tags",
+              //   "userId"
+              // ]
+            }
+          }
+        }
+      });
+      console.log(hits);
+      const values = hits.hits.map(hit => {
+        return {
+          id: hit._id,
+          text: hit._source.text,
+          title: hit._source.title,
+          location: hit._source.location,
+          category: hit._source.category,
+          tags: hit._source.tags,
+          userId: hit._source.userId,
+          score: hit._score
+        };
+      });
+      return values;
     }
   },
 
