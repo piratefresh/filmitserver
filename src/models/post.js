@@ -1,30 +1,5 @@
 import { esclient } from "../config/es";
-
-const saveDocument = instance => {
-  const document = instance.toJSON();
-  return esclient.create({
-    index: "post",
-    id: instance.dataValues.id,
-    body: document
-  });
-};
-
-const deleteDocument = instance => {
-  return esclient.delete({
-    index: "post",
-    id: instance.dataValues.id
-  });
-};
-
-// const { body } = es.search({
-//   index: "post",
-//   // type: '_doc', // uncomment this line if you are using Elasticsearch ≤ 6
-//   body: {
-//     query: {
-//       match: { quote: "winter" }
-//     }
-//   }
-// });
+import models from "../models";
 
 const post = (sequelize, DataTypes) => {
   const Post = sequelize.define(
@@ -109,3 +84,51 @@ const post = (sequelize, DataTypes) => {
   return Post;
 };
 export default post;
+
+/**
+ * @function saveDocument
+ * @returns {document}
+ * @description Saves a document to db
+ */
+const saveDocument = async instance => {
+  const document = await instance.toJSON();
+  const {
+    title,
+    text,
+    category,
+    tags,
+    location,
+    userId,
+    createdAt,
+    postImage
+  } = await document;
+  const { username, firstName, lastName } = await models.User.findByPk(userId);
+  return esclient.create({
+    index: "post",
+    id: instance.dataValues.id,
+    body: {
+      title,
+      text,
+      category,
+      tags,
+      location,
+      username,
+      firstName,
+      lastName,
+      createdAt,
+      postImage
+    }
+  });
+};
+
+/**
+ * @function deleteDocument
+ * @returns {id}
+ * @description Deletes document from db
+ */
+const deleteDocument = instance => {
+  return esclient.delete({
+    index: "post",
+    id: instance.dataValues.id
+  });
+};

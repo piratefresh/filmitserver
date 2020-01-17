@@ -94,7 +94,7 @@ export default {
         }
       };
     },
-    searchPost: async (parent, { query }, { models }) => {
+    searchPosts: async (parent, { query }, { models }) => {
       const {
         body: { hits }
       } = await esclient.search({
@@ -103,17 +103,18 @@ export default {
           query: {
             multi_match: {
               query,
-              fields: ["title", "text", "location", "category", "tags"],
+              fields: [
+                "title",
+                "text",
+                "location",
+                "category",
+                "tags",
+                "firstName",
+                "lastName",
+                "username"
+              ],
               operator: "and",
               fuzziness: "auto"
-              // fields: [
-              //   "text",
-              //   "title",
-              //   "location",
-              //   "category",
-              //   "tags",
-              //   "userId"
-              // ]
             }
           }
         }
@@ -128,6 +129,11 @@ export default {
           category: hit._source.category,
           tags: hit._source.tags,
           userId: hit._source.userId,
+          username: hit._source.username,
+          firstName: hit._source.firstName,
+          lastName: hit._source.lastName,
+          postImage: hit._source.postImage,
+          createdAt: hit._source.createdAt,
           score: hit._score
         };
       });

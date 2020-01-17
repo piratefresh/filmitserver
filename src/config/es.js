@@ -1,4 +1,4 @@
-const { Client } = require("@elastic/elasticsearch");
+import { Client } from "@elastic/elasticsearch";
 require("dotenv").config();
 
 const elasticUrl = process.env.ELASTIC_URL || "http://localhost:9200";
@@ -40,6 +40,63 @@ async function createIndex(index) {
 }
 
 /**
+ * @function setPostMapping,
+ * @returns {void}
+ * @description Sets the post mapping to the database.
+ */
+
+async function setPostMapping() {
+  try {
+    const schema = {
+      title: {
+        type: "text"
+      },
+      text: {
+        type: "text"
+      },
+      location: {
+        type: "text"
+      },
+      category: {
+        type: "text"
+      },
+      tags: {
+        type: "text"
+      },
+      username: {
+        type: "text"
+      },
+      firstName: {
+        type: "text"
+      },
+      lastName: {
+        type: "text"
+      },
+      postImage: {
+        type: "text"
+      },
+      createdAt: {
+        type: "date"
+      }
+    };
+
+    await esclient.indices.putMapping({
+      index,
+      type,
+      include_type_name: true,
+      body: {
+        properties: schema
+      }
+    });
+
+    console.log("Post mapping created successfully");
+  } catch (err) {
+    console.error("An error occurred while setting the Post mapping:");
+    console.error(err);
+  }
+}
+
+/**
  * @function checkConnection
  * @returns {Promise<Boolean>}
  * @description Checks if the client is connected to ElasticSearch
@@ -69,6 +126,7 @@ function checkConnection() {
 module.exports = {
   esclient,
   checkIndices,
+  setPostMapping,
   checkConnection,
   createIndex,
   index,

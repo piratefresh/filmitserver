@@ -10,8 +10,13 @@ import morgan from "morgan";
 import avatarsMiddleware from "adorable-avatars";
 import cloudinary from "cloudinary";
 import multer from "multer";
-import { checkIndices, checkConnection, index, esclient } from "./config/es";
-import cloudinaryStorage from "multer-storage-cloudinary";
+import {
+  createIndex,
+  checkConnection,
+  index,
+  esclient,
+  setPostMapping
+} from "./config/es";
 
 import schema from "./schema";
 import resolvers from "./resolvers";
@@ -200,7 +205,8 @@ async function runElasticServer() {
     const elasticIndex = await esclient.indices.exists({ index });
 
     if (!elasticIndex.body) {
-      await elastic.createIndex(index);
+      await createIndex(index);
+      await setPostMapping();
     }
   }
 }
