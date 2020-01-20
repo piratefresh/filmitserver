@@ -10,7 +10,14 @@ export default gql`
       filter: String
     ): PostConnection!
     post(id: ID!): Post!
-    searchPosts(query: String!): [FilteredPost!]
+    searchPosts(
+      term: String
+      category: String
+      cursor: String
+      limit: Int
+      offset: Int
+    ): FilteredPostConnection!
+    categoryPosts(category: String!): [FilteredPost!]
   }
   extend type Mutation {
     createPost(
@@ -29,6 +36,10 @@ export default gql`
     edges: [Post!]!
     pageInfo: PageInfo!
   }
+  type FilteredPostConnection {
+    edges: [FilteredPost!]!
+    pageInfo: PageInfo!
+  }
   type FilteredPost {
     id: ID!
     title: String!
@@ -39,8 +50,10 @@ export default gql`
     username: String!
     lastName: String!
     firstName: String!
+    email: String!
     createdAt: Date!
     postImage: String!
+    active: Boolean!
   }
   type Post {
     id: ID!
@@ -54,6 +67,7 @@ export default gql`
     location: String!
     lat: Float!
     lng: Float!
+    active: Boolean!
   }
   extend type Subscription {
     postCreated: PostCreated!

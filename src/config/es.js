@@ -48,6 +48,9 @@ async function createIndex(index) {
 async function setPostMapping() {
   try {
     const schema = {
+      uid: {
+        type: "integer"
+      },
       title: {
         type: "text"
       },
@@ -59,6 +62,9 @@ async function setPostMapping() {
       },
       category: {
         type: "text"
+      },
+      categorykeyword: {
+        type: "keyword"
       },
       tags: {
         type: "text"

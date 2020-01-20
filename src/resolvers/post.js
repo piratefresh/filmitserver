@@ -17,7 +17,6 @@ export default {
       { cursor, limit = 100, offset, filter },
       { models }
     ) => {
-      console.log(cursor);
       const cursorOptions = cursor
         ? {
             where: {
@@ -94,32 +93,105 @@ export default {
         }
       };
     },
-    searchPosts: async (parent, { query }, { models }) => {
+    searchPosts: async (
+      parent,
+      { cursor, limit = 100, offset, term, category },
+      { models }
+    ) => {
+      try {
+        const { body, size } = term
+          ? await esclient.search({
+              index,
+              size: 4,
+              sort: "createdAt:desc",
+              body: {
+                query: {
+                  multi_match: {
+                    query: `*${term}*`,
+                    fields: [
+                      "title",
+                      "text",
+                      "location",
+                      "category",
+                      "tags",
+                      "firstName",
+                      "lastName",
+                      "username"
+                    ],
+                    operator: "and",
+                    fuzziness: "auto"
+                  }
+                },
+                search_after: [cursor === undefined ? Date.now() : cursor]
+              }
+            })
+          : category
+          ? await esclient.search({
+              index,
+              size: 4,
+              sort: "createdAt:desc",
+              body: {
+                query: {
+                  match: { category: `*${category}*` }
+                },
+                search_after: [cursor === undefined ? Date.now() : cursor]
+              }
+            })
+          : await esclient.search({
+              index,
+              size: 4,
+              sort: "createdAt:desc",
+              body: {
+                search_after: [cursor === undefined ? Date.now() : cursor]
+              }
+            });
+
+        const edges = await body.hits.hits.map(hit => {
+          return {
+            id: hit._id,
+            text: hit._source.text,
+            title: hit._source.title,
+            location: hit._source.location,
+            category: hit._source.category,
+            tags: hit._source.tags,
+            userId: hit._source.userId,
+            postImage: hit._source.postImage,
+            createdAt: hit._source.createdAt,
+            score: hit._score,
+            username: hit._source.username,
+            firstName: hit._source.firstName,
+            lastName: hit._source.lastName
+          };
+        });
+
+        // Pagination
+        const endCursor = body.hits.hits[
+          body.hits.hits.length - 1
+        ].sort.toString();
+        const hasNextPage = edges.length >= 4;
+
+        return {
+          edges,
+          pageInfo: {
+            hasNextPage,
+            endCursor
+          }
+        };
+      } catch (err) {
+        console.log(err.meta);
+      }
+    },
+    categoryPosts: async (parent, { category }, { models }) => {
       const {
         body: { hits }
       } = await esclient.search({
         index,
         body: {
           query: {
-            multi_match: {
-              query,
-              fields: [
-                "title",
-                "text",
-                "location",
-                "category",
-                "tags",
-                "firstName",
-                "lastName",
-                "username"
-              ],
-              operator: "and",
-              fuzziness: "auto"
-            }
+            match: { category: category }
           }
         }
       });
-      console.log(hits);
       const values = hits.hits.map(hit => {
         return {
           id: hit._id,
