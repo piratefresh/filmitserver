@@ -98,55 +98,55 @@ export default {
       { cursor, limit = 100, offset, term, category },
       { models }
     ) => {
+      console.log(term, category);
       try {
-        console.log([...category]);
-        const { body, size } = term
-          ? await esclient.search({
-              index,
-              size: 4,
-              sort: "createdAt:desc",
-              body: {
-                query: {
-                  multi_match: {
-                    query: `*${term}*`,
-                    fields: [
-                      "title",
-                      "text",
-                      "location",
-                      "category",
-                      "tags",
-                      "firstName",
-                      "lastName",
-                      "username"
-                    ],
-                    operator: "and",
-                    fuzziness: "auto"
-                  }
-                },
-                search_after: [cursor === undefined ? Date.now() : cursor]
-              }
-            })
-          : category
-          ? await esclient.search({
-              index,
-              size: 4,
-              sort: "createdAt:desc",
-              body: {
-                query: {
-                  terms: { category: ["music production"] }
-                },
-                search_after: [cursor === undefined ? Date.now() : cursor]
-              }
-            })
-          : await esclient.search({
-              index,
-              size: 4,
-              sort: "createdAt:desc",
-              body: {
-                search_after: [cursor === undefined ? Date.now() : cursor]
-              }
-            });
+        const { body, size } =
+          term || category.length > 0
+            ? await esclient.search({
+                index,
+                size: 4,
+                sort: "createdAt:desc",
+                body: {
+                  query: {
+                    bool: {
+                      should: [
+                        {
+                          terms: { category: [...category] }
+                        },
+                        {
+                          multi_match: {
+                            query: `*${term}*`,
+                            fields: [
+                              "title",
+                              "text",
+                              "location",
+                              "category",
+                              "tags",
+                              "firstName",
+                              "lastName",
+                              "username"
+                            ],
+                            operator: "and",
+                            fuzziness: "auto"
+                          }
+                        }
+                      ],
+                      minimum_should_match: 1
+                    }
+                  },
+                  search_after: [cursor === undefined ? Date.now() : cursor]
+                }
+              })
+            : await esclient.search({
+                index,
+                size: 4,
+                sort: "createdAt:desc",
+                body: {
+                  search_after: [cursor === undefined ? Date.now() : cursor]
+                }
+              });
 
+        console.log(body);
         const edges = await body.hits.hits.map(hit => {
           return {
             id: hit._id,
