@@ -12,7 +12,7 @@ export default gql`
     post(id: ID!): Post!
     searchPosts(
       term: String
-      category: String
+      category: [String]
       cursor: String
       limit: Int
       offset: Int

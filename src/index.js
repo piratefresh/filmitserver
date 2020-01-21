@@ -213,7 +213,7 @@ async function runElasticServer() {
 
 runElasticServer();
 
-sequelize.sync({ force: true }).then(async () => {
+sequelize.sync().then(async () => {
   httpServer.listen({ port }, () => {
     console.log(
       `Server 📦 is running 🏃 at port  http://localhost:${port}/graphql`

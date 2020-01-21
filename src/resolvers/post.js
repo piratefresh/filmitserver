@@ -99,6 +99,7 @@ export default {
       { models }
     ) => {
       try {
+        console.log([...category]);
         const { body, size } = term
           ? await esclient.search({
               index,
@@ -132,7 +133,7 @@ export default {
               sort: "createdAt:desc",
               body: {
                 query: {
-                  match: { category: `*${category}*` }
+                  terms: { category: ["music production"] }
                 },
                 search_after: [cursor === undefined ? Date.now() : cursor]
               }
