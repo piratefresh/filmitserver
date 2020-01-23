@@ -42,6 +42,14 @@ export default {
     },
     message: async (parent, { id }, { models }) => {
       return await models.Message.findByPk(id);
+    },
+    getUnreadMessages: async (_, args, { models, me }) => {
+      return await models.Message.findAll({
+        where: {
+          receiverId: me.id,
+          isRead: false
+        }
+      });
     }
   },
 
@@ -100,7 +108,7 @@ export default {
       subscribe: withFilter(
         () => pubsub.asyncIterator(EVENTS.MESSAGE.CREATED),
         (payload, variables) => {
-          console.log(payload.messageCreated);
+          // console.log(payload.messageCreated);
           return (
             payload.messageCreated.message.receiverId === variables.receiverId
           );

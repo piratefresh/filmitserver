@@ -8,6 +8,10 @@ const message = (sequelize, DataTypes) => {
           msg: "A channel has to have a text."
         }
       }
+    },
+    isRead: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false
     }
   });
   Message.associate = models => {

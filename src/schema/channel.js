@@ -4,6 +4,7 @@ export default gql`
   extend type Query {
     channels(cursor: String, limit: Int): ChannelConnection!
     channel: Channel
+    getChannel(channelId: Int!): Channel!
   }
   extend type Mutation {
     createChannel(receiverId: Int, content: String): Channel!
@@ -19,12 +20,15 @@ export default gql`
     edges: [Channel!]
     pageInfo: PageInfo!
   }
-
+  type ChannelUpdate {
+    channel: Channel!
+  }
   type ChannelCreated {
     channel: Channel!
   }
 
   extend type Subscription {
-    channelCreated(memberId: Int!): ChannelCreated!
+    channelCreated(memberId: Int): ChannelCreated!
+    channelUpdated(memberId: Int): ChannelUpdate!
   }
 `;

@@ -56,6 +56,24 @@ export default {
           }
         };
       }
+    ),
+    getChannel: combineResolvers(
+      isAuthenticated,
+      async (parent, { channelId }, { models, me }) => {
+        const channel = await models.Channel.findByPk(channelId);
+        const unReadMessages = await models.Message.update(
+          { isRead: true },
+          {
+            where: { receiverId: me.id, isRead: false, channelId },
+            order: [["id", "ASC"]]
+          }
+        );
+        console.log(channel);
+        pubsub.publish(EVENTS.CHANNEL.UPDATED, {
+          channelUpdated: { channel }
+        });
+        return channel;
+      }
     )
   },
 
@@ -87,7 +105,9 @@ export default {
             senderId: me.id,
             channelId: parsedChannel.id
           });
-
+          console.log(
+            `channel does not exists, creating message for${parsedChannel}`
+          );
           pubsub.publish(EVENTS.MESSAGE.CREATED, {
             messageCreated: { message }
           });
@@ -102,8 +122,10 @@ export default {
           channelId: channel.id
         });
 
-        pubsub.publish(EVENTS.CHANNEL.CREATED, {
-          channelCreated: { channel }
+        console.log(`channel exists, creating message for${channel.id}`);
+
+        pubsub.publish(EVENTS.MESSAGE.CREATED, {
+          messageCreated: { message }
         });
 
         return await channel;
@@ -132,13 +154,13 @@ export default {
         }
       )
     },
-    messageCreated: {
+    channelUpdated: {
       subscribe: withFilter(
-        () => pubsub.asyncIterator(EVENTS.MESSAGE.CREATED),
+        () => pubsub.asyncIterator(EVENTS.CHANNEL.UPDATED),
         (payload, variables) => {
-          console.log(payload.messageCreated);
-          return (
-            payload.messageCreated.message.receiverId === variables.receiverId
+          console.log(payload.channelUpdated.channel);
+          return payload.channelUpdated.channel.members.includes(
+            variables.memberId
           );
         }
       )

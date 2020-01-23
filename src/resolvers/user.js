@@ -1,3 +1,4 @@
+import Sequelize from "sequelize";
 import jwt from "jsonwebtoken";
 import { combineResolvers } from "graphql-resolvers";
 import { AuthenticationError, UserInputError } from "apollo-server";
