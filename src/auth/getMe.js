@@ -12,3 +12,11 @@ export const getMe = async req => {
     }
   }
 };
+
+export const getMeSubscription = async token => {
+  try {
+    return jwt.verify(token, process.env.ACCESS_SECRET);
+  } catch (e) {
+    throw new AuthenticationError("Your session expired. Sign in again.");
+  }
+};

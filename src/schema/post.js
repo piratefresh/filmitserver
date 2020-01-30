@@ -13,6 +13,9 @@ export default gql`
     searchPosts(
       term: String
       category: [String]
+      lat: Float
+      lon: Float
+      city: String
       cursor: String
       limit: Int
       offset: Int
@@ -26,9 +29,9 @@ export default gql`
       postImage: String!
       tags: [String!]
       category: [String!]
-      location: String!
+      city: String!
       lat: Float!
-      lng: Float!
+      lon: Float!
     ): Post!
     deletePost(id: ID!): Boolean!
   }
@@ -46,7 +49,7 @@ export default gql`
     text: String!
     category: [String]!
     tags: [String!]
-    location: String!
+    city: String!
     username: String!
     lastName: String!
     firstName: String!
@@ -64,15 +67,15 @@ export default gql`
     user: User!
     category: [String!]
     postImage: String!
-    location: String!
+    city: String!
     lat: Float!
-    lng: Float!
+    lon: Float!
     active: Boolean!
   }
   extend type Subscription {
-    postCreated: PostCreated!
+    postCreated: PostCreated
   }
   type PostCreated {
-    post: Post!
+    post: FilteredPost!
   }
 `;

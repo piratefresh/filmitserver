@@ -3,6 +3,7 @@ import { combineResolvers } from "graphql-resolvers";
 import { esclient, index, type } from "../config/es";
 import pubsub, { EVENTS } from "../subscription";
 import { isAuth } from "../auth/isAuth";
+import { validateLatLon, isEmpty, validateCategory } from "../utils/isEmpty";
 import { isAuthenticated, isMessageOwner } from "./authorization";
 
 const toCursorHash = string => Buffer.from(string).toString("base64");
@@ -95,64 +96,190 @@ export default {
     },
     searchPosts: async (
       parent,
-      { cursor, limit = 100, offset, term, category },
+      { cursor, limit = 100, offset, term, category, lat, lon },
       { models }
     ) => {
-      console.log(term, category);
       try {
-        const { body, size } =
-          term || category.length > 0
-            ? await esclient.search({
-                index,
-                size: 4,
-                sort: "createdAt:desc",
-                body: {
-                  query: {
-                    bool: {
-                      should: [
-                        {
-                          terms: { category: [...category] }
-                        },
-                        {
-                          multi_match: {
-                            query: `*${term}*`,
-                            fields: [
-                              "title",
-                              "text",
-                              "location",
-                              "category",
-                              "tags",
-                              "firstName",
-                              "lastName",
-                              "username"
-                            ],
-                            operator: "and",
-                            fuzziness: "auto"
+        let body;
+        if (term && !validateLatLon(lat, lon) && validateCategory(category)) {
+          console.log("3 match");
+          body = await esclient.search({
+            index,
+            size: 4,
+            sort: "createdAt:desc",
+            body: {
+              query: {
+                bool: {
+                  must: [
+                    {
+                      terms: { category: [...category] }
+                    },
+                    {
+                      multi_match: {
+                        query: `*${term}*`,
+                        fields: [
+                          "title",
+                          "text",
+                          "city",
+                          "category",
+                          "tags",
+                          "firstName",
+                          "lastName",
+                          "username"
+                        ],
+                        operator: "and",
+                        fuzziness: "auto"
+                      }
+                    },
+                    {
+                      bool: {
+                        filter: {
+                          geo_distance: {
+                            distance: "20km",
+                            location: {
+                              lat,
+                              lon
+                            },
+                            _name: "location"
                           }
                         }
-                      ],
-                      minimum_should_match: 1
+                      }
                     }
-                  },
-                  search_after: [cursor === undefined ? Date.now() : cursor]
+                  ]
                 }
-              })
-            : await esclient.search({
-                index,
-                size: 4,
-                sort: "createdAt:desc",
-                body: {
-                  search_after: [cursor === undefined ? Date.now() : cursor]
+              },
+              search_after: [cursor === undefined ? Date.now() : cursor]
+            }
+          });
+        } else if (
+          (term && !validateLatLon(lat, lon)) ||
+          (term && !validateCategory(category)) ||
+          (validateCategory(category) && !validateLatLon(lat, lon))
+        ) {
+          console.log("2 match");
+          body = await esclient.search({
+            index,
+            size: 4,
+            sort: "createdAt:desc",
+            body: {
+              query: {
+                bool: {
+                  should: [
+                    {
+                      terms: { category: [...category] }
+                    },
+                    {
+                      multi_match: {
+                        query: `*${term}*`,
+                        fields: [
+                          "title",
+                          "text",
+                          "city",
+                          "category",
+                          "tags",
+                          "firstName",
+                          "lastName",
+                          "username"
+                        ],
+                        operator: "and",
+                        fuzziness: "auto"
+                      }
+                    },
+                    {
+                      bool: {
+                        filter: {
+                          geo_distance: {
+                            distance: "20km",
+                            location: {
+                              lat,
+                              lon
+                            },
+                            _name: "location"
+                          }
+                        }
+                      }
+                    }
+                  ],
+                  minimum_should_match: 2
                 }
-              });
-
-        console.log(body);
-        const edges = await body.hits.hits.map(hit => {
+              },
+              search_after: [cursor === undefined ? Date.now() : cursor]
+            }
+          });
+        } else if (
+          term ||
+          validateCategory(category) ||
+          !validateLatLon(lat, lon)
+        ) {
+          console.log("1 match");
+          console.log(term || validateCategory(category));
+          body = await esclient.search({
+            index,
+            size: 4,
+            sort: "createdAt:desc",
+            body: {
+              query: {
+                bool: {
+                  should: [
+                    {
+                      terms: { category: [...category] }
+                    },
+                    {
+                      multi_match: {
+                        query: `*${term}*`,
+                        fields: [
+                          "title",
+                          "text",
+                          "city",
+                          "category",
+                          "tags",
+                          "firstName",
+                          "lastName",
+                          "username"
+                        ],
+                        operator: "and",
+                        fuzziness: "auto"
+                      }
+                    },
+                    {
+                      bool: {
+                        filter: {
+                          geo_distance: {
+                            distance: "20km",
+                            location: {
+                              lat,
+                              lon
+                            },
+                            _name: "location"
+                          }
+                        }
+                      }
+                    }
+                  ],
+                  minimum_should_match: 1
+                }
+              },
+              search_after: [cursor === undefined ? Date.now() : cursor]
+            }
+          });
+        } else {
+          body = await esclient.search({
+            index,
+            size: 4,
+            sort: "createdAt:desc",
+            body: {
+              search_after: [cursor === undefined ? Date.now() : cursor]
+            }
+          });
+        }
+        console.log(body.body.hits.hits);
+        console.log(cursor);
+        const edges = await body.body.hits.hits.map(hit => {
           return {
             id: hit._id,
             text: hit._source.text,
             title: hit._source.title,
-            location: hit._source.location,
+            city: hit._source.city,
             category: hit._source.category,
             tags: hit._source.tags,
             userId: hit._source.userId,
@@ -166,11 +293,10 @@ export default {
         });
 
         // Pagination
-        const endCursor = body.hits.hits[
-          body.hits.hits.length - 1
+        const endCursor = body.body.hits.hits[
+          body.body.hits.hits.length - 1
         ].sort.toString();
         const hasNextPage = edges.length >= 4;
-
         return {
           edges,
           pageInfo: {
@@ -198,7 +324,7 @@ export default {
           id: hit._id,
           text: hit._source.text,
           title: hit._source.title,
-          location: hit._source.location,
+          city: hit._source.city,
           category: hit._source.category,
           tags: hit._source.tags,
           userId: hit._source.userId,
@@ -217,23 +343,22 @@ export default {
   Mutation: {
     createPost: async (
       parent,
-      { text, title, postImage, tags, category, location, lng, lat },
+      { text, title, postImage, tags, category, city, lat, lon },
       { models, me }
     ) => {
-      console.log(me);
       const post = await models.Post.create({
         text,
         title,
         tags,
         category,
         postImage,
-        location,
-        lng,
+        city,
         lat,
+        lon,
         userId: me.id
       });
 
-      pubsub.publish(EVENTS.POST.CREATED, {
+      await pubsub.publish(EVENTS.POST.CREATED, {
         postCreated: { post }
       });
 

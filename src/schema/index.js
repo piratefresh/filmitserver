@@ -5,7 +5,7 @@ import messageSchema from "./message";
 import postSchema from "./post";
 import channelSchema from "./channel";
 import textSchema from "./text";
-// import fileSchema from "./file";
+import notificationSchema from "./notification";
 
 const linkSchema = gql`
   scalar Date
@@ -26,5 +26,6 @@ export default [
   messageSchema,
   postSchema,
   channelSchema,
-  textSchema
+  textSchema,
+  notificationSchema
 ];

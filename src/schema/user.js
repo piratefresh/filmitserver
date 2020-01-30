@@ -35,7 +35,9 @@ export default gql`
       avatar: String
       firstName: String
       lastName: String
-      location: String
+      city: String
+      lat: Float
+      lon: Float
       facebook: String
       instagram: String
       youtube: String
@@ -69,20 +71,24 @@ export default gql`
     role: String
     messages: [Message!]
     posts: [Post!]
+    favoritePosts: [Post!]
     bio: String
     homepage: String
     rating: Int
     socials: [Social]
     avatar: String
-    location: String
+    city: String
     lat: Float
-    lng: Float
+    lon: Float
     portfolio: String
     facebook: String
     instagram: String
     youtube: String
     vimeo: String
     linkedin: String
+    notifications: [Notification]
+    newNotifications: [Notification]
+    unreadMessages: [Message]
   }
   type UserConnection {
     edges: [User!]!

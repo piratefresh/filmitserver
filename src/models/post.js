@@ -32,7 +32,7 @@ const post = (sequelize, DataTypes) => {
           }
         }
       },
-      location: {
+      city: {
         type: DataTypes.STRING,
         validate: {
           notEmpty: {
@@ -44,7 +44,7 @@ const post = (sequelize, DataTypes) => {
       lat: {
         type: DataTypes.FLOAT
       },
-      lng: {
+      lon: {
         type: DataTypes.FLOAT
       },
       category: {
@@ -98,11 +98,16 @@ const saveDocument = async instance => {
     category,
     tags,
     location,
+    city,
     userId,
     createdAt,
-    postImage
+    postImage,
+    lat,
+    lon
   } = await document;
   const { username, firstName, lastName } = await models.User.findByPk(userId);
+  console.log(document);
+  console.log("added to Elastic DB");
   return esclient.create({
     index: "post",
     id: instance.dataValues.id,
@@ -111,7 +116,11 @@ const saveDocument = async instance => {
       text,
       category,
       tags,
-      location,
+      city,
+      location: {
+        lat,
+        lon
+      },
       username,
       firstName,
       lastName,

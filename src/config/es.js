@@ -47,51 +47,54 @@ async function createIndex(index) {
 
 async function setPostMapping() {
   try {
-    const schema = {
-      uid: {
-        type: "integer"
-      },
-      title: {
-        type: "text"
-      },
-      text: {
-        type: "text"
-      },
-      location: {
-        type: "text"
-      },
-      category: {
-        type: "text"
-      },
-      categorykeyword: {
-        type: "keyword"
-      },
-      tags: {
-        type: "text"
-      },
-      username: {
-        type: "text"
-      },
-      firstName: {
-        type: "text"
-      },
-      lastName: {
-        type: "text"
-      },
-      postImage: {
-        type: "text"
-      },
-      createdAt: {
-        type: "date"
-      }
-    };
+    const schema = {};
 
     await esclient.indices.putMapping({
       index,
       type,
       include_type_name: true,
       body: {
-        properties: schema
+        properties: {
+          uid: {
+            type: "integer"
+          },
+          title: {
+            type: "text"
+          },
+          text: {
+            type: "text"
+          },
+          city: {
+            type: "text"
+          },
+          category: {
+            type: "text"
+          },
+          categorykeyword: {
+            type: "keyword"
+          },
+          tags: {
+            type: "text"
+          },
+          username: {
+            type: "text"
+          },
+          firstName: {
+            type: "text"
+          },
+          lastName: {
+            type: "text"
+          },
+          postImage: {
+            type: "text"
+          },
+          createdAt: {
+            type: "date"
+          },
+          location: {
+            type: "geo_point"
+          }
+        }
       }
     });
 

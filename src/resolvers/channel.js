@@ -57,22 +57,84 @@ export default {
         };
       }
     ),
-    getChannel: combineResolvers(
+    channel: combineResolvers(
       isAuthenticated,
       async (parent, { channelId }, { models, me }) => {
-        const channel = await models.Channel.findByPk(channelId);
-        const unReadMessages = await models.Message.update(
-          { isRead: true },
-          {
-            where: { receiverId: me.id, isRead: false, channelId },
-            order: [["id", "ASC"]]
-          }
-        );
-        console.log(channel);
-        pubsub.publish(EVENTS.CHANNEL.UPDATED, {
-          channelUpdated: { channel }
+        try {
+          const channel = await models.Channel.findByPk(channelId, {
+            raw: true
+          });
+          console.log(channel);
+          pubsub.publish(EVENTS.CHANNEL.GET, {
+            getChannel: channel
+          });
+          return channel;
+        } catch (err) {
+          console.log(err);
+        }
+      }
+    ),
+    getUserChannels: combineResolvers(
+      isAuthenticated,
+      async (parent, { channelId }, { models, me }) => {
+        // Lets find all the channel Id
+        const channelIds = await models.Channel.findAll({
+          attributes: [[sequelize.fn("max", sequelize.col("id")), "id"]],
+          where: {
+            [Sequelize.Op.or]: [{ receiverId: me.id }, { senderId: me.id }]
+          },
+          group: ["id"],
+          raw: true
         });
-        return channel;
+        //  extract the ids from object inside array
+        let ids = await channelIds.map(channelId => {
+          return channelId.id;
+        });
+
+        const channels = await models.Channel.findAll({
+          where: {
+            [Sequelize.Op.or]: [{ receiverId: me.id }, { senderId: me.id }]
+          },
+          order: [["updatedAt", "DESC"]],
+          raw: true
+        });
+
+        // Lets get the last messages of conversations
+        const messages = await models.Message.findAll({
+          where: {
+            channelId: {
+              [Sequelize.Op.in]: ids
+            }
+          },
+          order: [["createdAt", "DESC"]],
+          raw: true
+        });
+
+        // finds the latest message
+        // const lastMessage = messages[0];
+        // console.log(lastMessage);
+
+        // find all latest messages in all channels
+        const lastMessagesArr = [];
+        messages.forEach(message => {
+          let i = lastMessagesArr.findIndex(
+            x => x.channelId == message.channelId
+          );
+          if (i <= -1) {
+            lastMessagesArr.push(message);
+          }
+        });
+
+        channels.map(channel => {
+          lastMessagesArr.map(message => {
+            if (channel.id === message.channelId) {
+              channel.messages = message;
+            }
+          });
+        });
+
+        // channels.sort().reverse();
+        return channels;
       }
     )
   },
@@ -82,50 +144,63 @@ export default {
       isAuthenticated,
       async (parent, { receiverId, content }, { models, me }) => {
         const members = [receiverId, me.id];
-        // let channel = await sequelize.query(
-        //   `SELECT * FROM channels WHERE members IN (ARRAY[${members}])`
-        // );
+        // Find channel
         let channel = await models.Channel.findOne({
           where: {
-            members: {
-              [Sequelize.Op.contains]: members
+            receiverId: {
+              [Sequelize.Op.in]: members
+            },
+            senderId: {
+              [Sequelize.Op.in]: members
             }
           },
           raw: true
         });
+        // if channel does not exist, we create channel
         if (!channel) {
-          channel = await models.Channel.create({
-            members
+          const newChannel = await models.Channel.create({
+            receiverId,
+            senderId: me.id
           });
-          const parsedChannel = await channel.toJSON();
+          // Parse because sequelize dosent returns instance not json so we cant transform it
+          const parsedChannel = await newChannel.toJSON();
 
           const message = await models.Message.create({
             content,
-            receiverId: receiverId,
+            receiverId,
             senderId: me.id,
             channelId: parsedChannel.id
           });
-          console.log(
-            `channel does not exists, creating message for${parsedChannel}`
-          );
+
+          // publish event that message has been created
           pubsub.publish(EVENTS.MESSAGE.CREATED, {
             messageCreated: { message }
           });
 
-          return await channel;
+          return await newChannel;
         }
-
-        const message = await models.Message.create({
+        // CREATE NEW MESSAGE FOR EXISTING CHANNEL
+        let message = await models.Message.create({
           content,
           receiverId: receiverId,
           senderId: me.id,
           channelId: channel.id
         });
 
-        console.log(`channel exists, creating message for${channel.id}`);
+        message = message.toJSON();
 
         pubsub.publish(EVENTS.MESSAGE.CREATED, {
-          messageCreated: { message }
+          messageCreated: message
+        });
+
+        // update the channel cache
+        const channelUpdated = {
+          ...channel,
+          lastMessage: message.content,
+          lastMessageCreatedAt: message.createdAt
+        };
+        pubsub.publish(EVENTS.CHANNEL.UPDATED, {
+          channelUpdated
         });
 
         return await channel;
@@ -140,6 +215,12 @@ export default {
           channelId: channel.id
         }
       });
+    },
+    receiverId: async (channel, args, { models, loaders }) => {
+      return await loaders.user.load(channel.receiverId);
+    },
+    senderId: async (channel, args, { models, loaders }) => {
+      return await loaders.user.load(channel.senderId);
     }
   },
 
@@ -147,21 +228,40 @@ export default {
     channelCreated: {
       subscribe: withFilter(
         () => pubsub.asyncIterator(EVENTS.CHANNEL.CREATED),
-        (payload, variables) => {
-          return payload.channelCreated.channel.members.includes(
-            variables.memberId
-          );
+        (payload, variables, { me }) => {
+          return me && me.id === payload.newChannel.receiverId;
         }
       )
     },
     channelUpdated: {
       subscribe: withFilter(
         () => pubsub.asyncIterator(EVENTS.CHANNEL.UPDATED),
-        (payload, variables) => {
-          console.log(payload.channelUpdated.channel);
-          return payload.channelUpdated.channel.members.includes(
-            variables.memberId
-          );
+        (payload, variables, { me }) => {
+          console.log(payload.channelUpdated);
+          const { senderId, receiverId } = payload.channelUpdated;
+
+          const isAuthUserSenderOrReceiver =
+            senderId === me.id || receiverId === me.id;
+          const isUserSenderOrReceiver =
+            me.id !== senderId || me.id !== receiverId;
+
+          return isAuthUserSenderOrReceiver && isUserSenderOrReceiver;
+        }
+      )
+    },
+    getChannel: {
+      subscribe: withFilter(
+        () => pubsub.asyncIterator(EVENTS.CHANNEL.GET),
+        (payload, variables, { me }) => {
+          console.log(payload.getChannel);
+          const { senderId, receiverId } = payload.getChannel;
+
+          const isAuthUserSenderOrReceiver =
+            senderId === me.id || receiverId === me.id;
+          const isUserSenderOrReceiver =
+            me.id !== senderId || me.id !== receiverId;
+
+          return isAuthUserSenderOrReceiver && isUserSenderOrReceiver;
         }
       )
     }

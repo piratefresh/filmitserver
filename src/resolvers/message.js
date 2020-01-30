@@ -88,13 +88,30 @@ export default {
       async (parent, { id }, { models }) => {
         return await models.Message.destroy({ where: { id } });
       }
+    ),
+
+    updateMessageSeen: combineResolvers(
+      isAuthenticated,
+      async (parent, { channelId, senderId }, { models, me }) => {
+        try {
+          await models.Message.update(
+            { isRead: true },
+            {
+              where: { senderId, receiverId: me.id, isRead: false, channelId }
+            }
+          );
+          return true;
+        } catch (e) {
+          return false;
+        }
+      }
     )
   },
 
   Message: {
-    user: async (message, args, { loaders }) => {
-      return await loaders.user.load(message.userId);
-    },
+    // user: async (message, args, { loaders }) => {
+    //   return await loaders.user.load(message.userId);
+    // },
     receiverId: async (message, args, { models, loaders }) => {
       return await loaders.user.load(message.receiverId);
     },
@@ -107,11 +124,17 @@ export default {
     messageCreated: {
       subscribe: withFilter(
         () => pubsub.asyncIterator(EVENTS.MESSAGE.CREATED),
-        (payload, variables) => {
-          // console.log(payload.messageCreated);
-          return (
-            payload.messageCreated.message.receiverId === variables.receiverId
-          );
+        (payload, variables, { me }) => {
+          const { senderId, receiverId } = payload.messageCreated;
+
+          // const isAuthUserSenderOrReceiver =
+          //   senderId === me.id || ;
+          // const isUserSenderOrReceiver =
+          //   me.id !== senderId || me.id !== receiverId;
+
+          console.log(payload.messageCreated);
+
+          return receiverId === me.id;
         }
       )
     }

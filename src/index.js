@@ -23,7 +23,7 @@ import resolvers from "./resolvers";
 import models, { sequelize } from "./models";
 import loaders from "./loaders";
 import { createRefreshToken, createAccessToken } from "./auth";
-import { getMe } from "./auth/getMe";
+import { getMe, getMeSubscription } from "./auth/getMe";
 import auth from "./passport";
 import { sendRefreshToken } from "./sendRefreshToken";
 
@@ -83,7 +83,6 @@ app.get("/auth/google/callback", async (req, res, next) => {
         if (err) {
           return next(err);
         }
-        console.log(data);
         res.cookie("gtoken", data.token, {});
         return res.redirect(process.env.CLIENTURL);
       });
@@ -136,18 +135,6 @@ app.post(
   }
 );
 
-// const getMe = async req => {
-//   const token = req.headers["x-token"];
-
-//   if (token) {
-//     try {
-//       return await jwt.verify(token, process.env.ACCESS_SECRET);
-//     } catch (e) {
-//       throw new AuthenticationError("Your session expired. Sign in again.");
-//     }
-//   }
-// };
-
 const server = new ApolloServer({
   typeDefs: schema,
   resolvers,
@@ -165,14 +152,15 @@ const server = new ApolloServer({
   },
   context: async ({ req, res, connection }) => {
     if (connection) {
+      const { context } = connection;
       return {
         models,
         loaders: {
           user: new DataLoader(keys => loaders.user.batchUsers(keys, models))
-        }
+        },
+        ...context
       };
     }
-
     if (req) {
       const me = await getMe(req);
 
@@ -186,6 +174,18 @@ const server = new ApolloServer({
           user: new DataLoader(keys => loaders.user.batchUsers(keys, models))
         }
       };
+    }
+  },
+  subscriptions: {
+    onConnect: async (connectionParams, webSocket) => {
+      if (connectionParams.authorization) {
+        const me = await getMeSubscription(connectionParams.authorization);
+        console.log(me);
+        return {
+          me
+        };
+      }
+      throw new Error("Missing auth token!");
     }
   }
 });
@@ -206,7 +206,7 @@ async function runElasticServer() {
 
     if (!elasticIndex.body) {
       await createIndex(index);
-      await setPostMapping();
+      // await setPostMapping();
     }
   }
 }

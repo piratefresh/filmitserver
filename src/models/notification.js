@@ -1,7 +1,7 @@
 const notification = (sequelize, DataTypes) => {
   const Notification = sequelize.define("notification", {
-    type: {
-      type: DataTypes.INTEGER,
+    seen: {
+      type: DataTypes.BOOLEAN,
       validate: {
         notEmpty: {
           args: true,
@@ -12,6 +12,9 @@ const notification = (sequelize, DataTypes) => {
   });
   Notification.associate = models => {
     Notification.belongsTo(models.User);
+    Notification.belongsTo(models.Message);
+    Notification.belongsTo(models.Post);
+    Notification.belongsTo(models.Channel);
   };
   return Notification;
 };

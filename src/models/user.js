@@ -44,13 +44,13 @@ const user = (sequelize, DataTypes) => {
     lastName: {
       type: DataTypes.STRING
     },
-    location: {
+    city: {
       type: DataTypes.STRING
     },
     lat: {
       type: DataTypes.FLOAT
     },
-    lng: {
+    lon: {
       type: DataTypes.FLOAT
     },
     confirmed: {
@@ -94,12 +94,31 @@ const user = (sequelize, DataTypes) => {
           msg: "Post needs one ore more tag."
         }
       }
+    },
+    lastMessageCreatedAt: {
+      type: DataTypes.DATE
+    },
+    lastMessageId: {
+      type: DataTypes.INTEGER
+    },
+    lastMessage: {
+      type: DataTypes.STRING
+    },
+    lastMessageSender: {
+      type: DataTypes.BOOLEAN
     }
   });
 
   User.associate = models => {
     User.hasMany(models.Message, { onDelete: "CASCADE" });
     User.hasMany(models.Post, { onDelete: "CASCADE" });
+    User.hasMany(models.Post, {
+      onDelete: "CASCADE",
+      foreignKey: {
+        name: "favoritePosts",
+        field: "favorite_posts"
+      }
+    });
   };
 
   User.findByLogin = async login => {

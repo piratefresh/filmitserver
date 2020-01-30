@@ -70,18 +70,26 @@ export default {
       }
       try {
         const token = await authorization.split(" ")[1];
-        console.log(token);
         const payload = await jwt.verify(token, process.env.ACCESS_SECRET);
-        return await models.User.findByPk(payload.id);
+        const user = await models.User.findByPk(payload.id, { raw: true });
+        //Find unread messages
+        const unreadMessages = await models.Message.findAll({
+          where: {
+            receiverId: me.id,
+            isRead: false
+          },
+          order: [["createdAt", "DESC"]],
+          raw: true
+        });
+
+        user.unreadMessages = unreadMessages;
+
+        console.log(unreadMessages);
+        return user;
       } catch (err) {
         console.log(err);
         return null;
       }
-      // if (!me) {
-      //   return null;
-      // }
-
-      // return await models.User.findByPk(me.id);
     }
   },
 
@@ -194,7 +202,6 @@ export default {
         throw new UserInputError("email token or email is not inputed");
       }
       let user = await models.User.findByLogin(email);
-      console.log(user);
       if (!user) {
         console.log("error 2");
         throw new AuthenticationError("User Does not Exist");
@@ -237,8 +244,8 @@ export default {
         avatar,
         firstName,
         lastName,
-        location,
-        lng,
+        city,
+        lon,
         lat,
         facebook,
         vimeo,
@@ -259,8 +266,8 @@ export default {
             avatar,
             firstName,
             lastName,
-            location,
-            lng,
+            city,
+            lon,
             lat,
             facebook,
             vimeo,

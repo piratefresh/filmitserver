@@ -9,6 +9,7 @@ export default gql`
   extend type Mutation {
     createMessage(receiverId: ID, content: String!): Message!
     deleteMessage(id: ID!): Boolean!
+    updateMessageSeen(channelId: ID, senderId: ID): Boolean
   }
   type MessageConnection {
     edges: [Message!]!
@@ -26,12 +27,8 @@ export default gql`
     receiverId: User!
     senderId: User!
     createdAt: Date!
-    user: User!
   }
   extend type Subscription {
-    messageCreated(receiverId: Int): MessageCreated!
-  }
-  type MessageCreated {
-    message: Message!
+    messageCreated: Message!
   }
 `;

@@ -5,6 +5,7 @@ import messageResolvers from "../resolvers/message";
 import postResolvers from "../resolvers/post";
 import channelResolvers from "../resolvers/channel";
 import textResolvers from "../resolvers/text";
+import notificationResolvers from "../resolvers/notification";
 
 const customScalarResolver = {
   Date: GraphQLDateTime
@@ -16,5 +17,6 @@ export default [
   messageResolvers,
   postResolvers,
   channelResolvers,
-  textResolvers
+  textResolvers,
+  notificationResolvers
 ];
