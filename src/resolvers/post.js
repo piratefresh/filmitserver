@@ -191,8 +191,8 @@ export default {
                           geo_distance: {
                             distance: "20km",
                             location: {
-                              lat,
-                              lon
+                              lat: lat === undefined ? 0 : lat,
+                              lon: lon === undefined ? 0 : lon
                             },
                             _name: "location"
                           }
@@ -213,6 +213,7 @@ export default {
         ) {
           console.log("1 match");
           console.log(term || validateCategory(category));
+          console.log(lat, lon);
           body = await esclient.search({
             index,
             size: 4,
@@ -221,9 +222,6 @@ export default {
               query: {
                 bool: {
                   should: [
-                    {
-                      terms: { category: [...category] }
-                    },
                     {
                       multi_match: {
                         query: `*${term}*`,
@@ -247,13 +245,16 @@ export default {
                           geo_distance: {
                             distance: "20km",
                             location: {
-                              lat,
-                              lon
+                              lat: lat === undefined ? 0 : lat,
+                              lon: lon === undefined ? 0 : lon
                             },
                             _name: "location"
                           }
                         }
                       }
+                    },
+                    {
+                      terms: { category: [...category], _name: "category" }
                     }
                   ],
                   minimum_should_match: 1
@@ -272,8 +273,8 @@ export default {
             }
           });
         }
-        console.log(body.body.hits.hits);
-        console.log(cursor);
+        // console.log(body.body.hits.hits);
+        // console.log(cursor);
         const edges = await body.body.hits.hits.map(hit => {
           return {
             id: hit._id,
@@ -305,7 +306,8 @@ export default {
           }
         };
       } catch (err) {
-        console.log(err.meta);
+        console.log("failed");
+        console.log(err.meta.body.error);
       }
     },
     categoryPosts: async (parent, { category }, { models }) => {
@@ -317,6 +319,41 @@ export default {
           query: {
             match: { category: category }
           }
+        }
+      });
+      const values = hits.hits.map(hit => {
+        return {
+          id: hit._id,
+          text: hit._source.text,
+          title: hit._source.title,
+          city: hit._source.city,
+          category: hit._source.category,
+          tags: hit._source.tags,
+          userId: hit._source.userId,
+          username: hit._source.username,
+          firstName: hit._source.firstName,
+          lastName: hit._source.lastName,
+          postImage: hit._source.postImage,
+          createdAt: hit._source.createdAt,
+          score: hit._score
+        };
+      });
+      return values;
+    },
+    getRecentPosts: async (parent, args) => {
+      const {
+        body: { hits }
+      } = await esclient.search({
+        index,
+        body: {
+          sort: [
+            {
+              createdAt: {
+                order: "desc"
+              }
+            }
+          ],
+          size: 4
         }
       });
       const values = hits.hits.map(hit => {

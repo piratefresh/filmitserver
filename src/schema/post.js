@@ -21,6 +21,7 @@ export default gql`
       offset: Int
     ): FilteredPostConnection!
     categoryPosts(category: String!): [FilteredPost!]
+    getRecentPosts: [FilteredPost!]
   }
   extend type Mutation {
     createPost(

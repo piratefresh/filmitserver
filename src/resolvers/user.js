@@ -323,12 +323,13 @@ export default {
       });
     },
     posts: async (user, args, { models }) => {
-      console.log(user);
-      return await models.Post.findAll({
+      const posts = await models.Post.findAll({
         where: {
           userId: user.id
         }
       });
+
+      return posts.sort().reverse();
     }
   }
 };
